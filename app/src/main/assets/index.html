@@ -1,0 +1,3866 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Yilmaz CNC610 - XY Визуализатор (v15-mobile)</title>
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --panel: #232323;
+            --input: #2c2c2c;
+            --btn: #262626;
+            --btn-hover: #333;
+            --btn-active: #e0e0e0;
+            --border: #3a3a3a;
+            --border-light: #4a4a4a;
+            --text: #c8c8c8;
+            --text-dim: #888;
+            --text-bright: #e8e8e8;
+            --accent: #b8b8b8;
+            --sidebar-w: 560px;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; height: 100dvh; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; display: flex; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; font-size: 13px; touch-action: none; }
+
+        #sidebar { width: var(--sidebar-w); max-width: 100%; background: var(--panel); padding: 16px; display: flex; flex-direction: column; border-right: 1px solid var(--border); flex-shrink: 0; overflow-y: auto; transition: transform 0.25s ease, width 0.25s ease; z-index: 50; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+        h2 { font-size: 13px; margin: 0 0 14px; color: var(--text-bright); border-bottom: 1px solid var(--border); padding-bottom: 10px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+        .add-row-panel { display: flex; gap: 4px; margin-bottom: 10px; align-items: stretch; }
+        .add-row-panel input { width: 50px; background: var(--input); color: var(--text-bright); border: 1px solid var(--border); border-radius: 2px; text-align: center; padding: 6px; font-size: 12px; }
+        .add-row-panel input:focus { border-color: var(--border-light); outline: none; }
+        #btnAddRow { background: var(--btn); color: var(--text); border: 1px solid var(--border); padding: 6px 12px; border-radius: 2px; cursor: pointer; font-weight: 500; font-size: 12px; flex-grow: 1; transition: background 0.15s; }
+        #btnAddRow:hover { background: var(--btn-hover); }
+
+        #table-container { flex-grow: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 2px; margin-bottom: 14px; min-height: 180px; background: #1e1e1e; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th, td { border: 1px solid var(--border); padding: 4px 3px; text-align: center; }
+        th { background: #2a2a2a; color: var(--text-dim); position: sticky; top: 0; z-index: 10; font-weight: 500; letter-spacing: 0.3px; font-size: 10px; text-transform: uppercase; }
+        tr { cursor: pointer; transition: background 0.1s; }
+        tr:hover { background: #2a2a2a; }
+        tr.selected { background: #353535; color: var(--text-bright); box-shadow: inset 3px 0 0 #888; }
+        tr.selected input, tr.selected select { background: #1e1e1e; border-color: var(--border-light); color: var(--text-bright); }
+
+        input[type="number"] { width: 46px; background: var(--input); color: var(--text-bright); border: 1px solid var(--border); border-radius: 2px; text-align: center; font-size: 11px; padding: 3px; }
+        input[type="number"]:focus { border-color: var(--border-light); outline: none; }
+        input[type="number"]:disabled { background: #1e1e1e; color: #555; border-color: #2a2a2a; }
+        /* Узкие поля координат в таблице (под 3-значные числа) */
+        #recipeTable input.coord-inp {
+            width: 38px; max-width: 38px; min-width: 0;
+            padding: 3px 1px; font-size: 11px;
+            background: var(--input); color: var(--text-bright);
+            border: 1px solid var(--border); border-radius: 2px; text-align: center;
+        }
+        #recipeTable input.coord-inp:disabled { background: #1e1e1e; color: #555; border-color: #2a2a2a; }
+        #recipeTable td { padding: 3px 2px; }
+        #recipeTable th:nth-child(4), #recipeTable th:nth-child(5), #recipeTable th:nth-child(6),
+        #recipeTable td:nth-child(4), #recipeTable td:nth-child(5), #recipeTable td:nth-child(6) {
+            width: 44px; max-width: 48px;
+        }
+
+        select { width: 76px; background: var(--input); color: var(--text-bright); border: 1px solid var(--border); border-radius: 2px; font-size: 10px; padding: 2px; }
+        select:focus { border-color: var(--border-light); outline: none; }
+
+        .action-btns { display: flex; gap: 2px; justify-content: center; }
+        .btn-mini { background: #2a2a2a; color: var(--text-dim); border: 1px solid var(--border); border-radius: 2px; cursor: pointer; padding: 2px 5px; font-weight: 500; font-size: 10px; transition: 0.1s; }
+        .btn-mini:hover { background: var(--btn-hover); color: var(--text-bright); border-color: var(--border-light); }
+        .btn-ins, .btn-del, .btn-move { background: #2a2a2a; }
+        .btn-ins:hover, .btn-del:hover, .btn-move:hover { background: var(--btn-hover); }
+
+        .tool-panel { background: #1e1e1e; border: 1px solid var(--border); border-radius: 2px; padding: 8px 10px; margin-bottom: 10px; }
+        .tool-panel .tp-head { display: flex; gap: 4px; align-items: center; margin-bottom: 6px; font-size: 12px; color: var(--text-dim); }
+        .tool-panel .tp-head button { padding: 3px 8px; font-size: 11px; }
+        .tool-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 6px; }
+        .tool-grp { grid-column: 1 / -1; font-size: 10px; color: var(--text-dim); margin-top: 4px; border-top: 1px solid var(--border); padding-top: 3px; }
+        .tool-item { display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; white-space: nowrap; overflow: hidden; }
+        .tool-item.empty { opacity: 0.4; }
+        .tool-item input[type=checkbox] { margin: 0; cursor: pointer; }
+        .tool-item input[type=color] { width: 16px; height: 16px; padding: 0; border: 1px solid var(--border); background: none; cursor: pointer; }
+        .tool-item .tn { color: var(--text-bright); min-width: 26px; }
+        .tool-item .tc { color: var(--text-dim); font-size: 10px; }
+        .tool-offsets { margin-top: 6px; font-size: 11px; color: var(--text-dim); }
+        .tool-offsets summary { cursor: pointer; }
+        .off-grid { display: grid; grid-template-columns: 38px 1fr 1fr; gap: 3px 6px; margin-top: 4px; align-items: center; }
+        .off-grid input[type=number] { width: 100%; }
+        .controls { background: #1e1e1e; padding: 12px; border: 1px solid var(--border); border-radius: 2px; margin-bottom: 14px; }
+        .btn-group { display: flex; gap: 4px; margin-bottom: 8px; }
+        .btn-group:last-child { margin-bottom: 0; }
+        button { background: var(--btn); color: var(--text); border: 1px solid var(--border); padding: 7px 10px; border-radius: 2px; cursor: pointer; font-weight: 500; flex: 1; font-size: 12px; transition: 0.15s; font-family: inherit; letter-spacing: 0.2px; }
+        button:hover { background: var(--btn-hover); border-color: var(--border-light); color: var(--text-bright); }
+        button:active { background: #1e1e1e; }
+        button:disabled { background: #1e1e1e; color: #555; cursor: not-allowed; border-color: var(--border); }
+
+        /* Активные режимы — инверсия, единственное "яркое" состояние */
+        button.photo-btn.active,
+        button.draw-btn.active {
+            background: var(--btn-active);
+            color: #1a1a1a;
+            border-color: #fff;
+            font-weight: 600;
+        }
+        button.photo-btn.active:hover,
+        button.draw-btn.active:hover {
+            background: #fff;
+            color: #1a1a1a;
+        }
+
+        .speed-control, .zoom-controls, .photo-controls {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 8px; background: #1a1a1a; padding: 6px 10px;
+            border: 1px solid var(--border); border-radius: 2px; font-size: 11px; gap: 6px;
+            color: var(--text-dim);
+        }
+        .photo-controls { flex-wrap: wrap; }
+        .photo-controls label { display: flex; align-items: center; gap: 6px; color: var(--text); }
+        input[type="range"] { width: 100px; accent-color: #888; }
+        .zoom-controls button { width: 28px; flex: none; padding: 4px 0; font-size: 13px; }
+
+        /* Точная подгонка */
+        .fine-tune {
+            background: #1a1a1a; border: 1px solid var(--border); border-radius: 2px;
+            padding: 8px; margin-top: 6px; font-size: 11px;
+        }
+        .fine-tune .row { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; }
+        .fine-tune .row:last-child { margin-bottom: 0; }
+        .fine-tune label { min-width: 52px; color: var(--text-dim); font-size: 11px; }
+        .fine-tune input[type="number"] { width: 68px; padding: 3px 4px; }
+        .fine-tune .unit { color: var(--text-dim); font-size: 10px; }
+        .fine-tune button { padding: 3px 8px; font-size: 11px; flex: none; }
+        .fine-tune .step-mult { display: flex; gap: 2px; margin-left: auto; }
+        .fine-tune .step-mult button { padding: 3px 6px; font-size: 10px; background: #1e1e1e; }
+        .fine-tune .step-mult button.active { background: var(--btn-active); color: #1a1a1a; border-color: #fff; }
+
+        .disc-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 4px 8px; align-items: center; font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+        .disc-grid input[type=number], .disc-grid select { width: 100%; }
+        .disc-grid label.chk { grid-column: span 4; display: flex; gap: 6px; align-items: center; color: var(--text); cursor: pointer; }
+        .disc-grid button { grid-column: span 4; padding: 4px 8px; font-size: 11px; }
+        .fine-tune .row.wrap { flex-wrap: wrap; }
+        .fine-tune .layer-name { color: var(--text-bright); font-weight: 600; margin-bottom: 6px; }
+        .fine-tune input[type="number"].wide { width: 78px; }
+        #main-wrapper { flex-grow: 1; position: relative; display: flex; overflow: hidden; background: #111; min-width: 0; min-height: 0; }
+        #canvasXY { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+        #canvasXY:active { cursor: grabbing; }
+        #canvasXY.drawing { cursor: crosshair; }
+        #canvasXY.photo-adjust { cursor: move; }
+
+        #info-panel {
+            position: absolute; bottom: 16px; left: 16px;
+            background: rgba(26, 26, 26, 0.94); border: 1px solid var(--border); border-radius: 2px;
+            padding: 12px 16px; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px;
+            pointer-events: none; line-height: 1.7; min-width: 220px; color: var(--text-dim);
+        }
+        #info-panel > div { display: flex; justify-content: space-between; gap: 16px; }
+        .val { color: var(--text-bright); font-weight: 600; }
+        .val-cut { color: var(--text-bright); font-weight: 600; }
+
+        #arcInfo {
+            position: absolute; top: 16px; left: 16px;
+            background: rgba(26, 26, 26, 0.94); border: 1px solid var(--border); border-radius: 2px;
+            padding: 10px 14px; font-size: 11px; color: var(--text-dim);
+            display: none; pointer-events: none; line-height: 1.6; font-family: monospace;
+        }
+        #arcInfo b { color: var(--text-bright); font-weight: 500; }
+
+        #modeHint {
+            position: absolute; top: 16px; right: 16px;
+            background: rgba(42, 42, 42, 0.94); border: 1px solid var(--border-light);
+            color: var(--text); padding: 8px 14px; border-radius: 2px;
+            font-size: 12px; font-weight: 500;
+            display: none; pointer-events: none; letter-spacing: 0.2px;
+        }
+        #modeHint.photo { background: rgba(42, 42, 42, 0.94); }
+
+        /* Скроллбары — тоже в едином стиле */
+        #sidebar::-webkit-scrollbar, #table-container::-webkit-scrollbar { width: 8px; }
+        #sidebar::-webkit-scrollbar-track, #table-container::-webkit-scrollbar-track { background: #1a1a1a; }
+        #sidebar::-webkit-scrollbar-thumb, #table-container::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        #sidebar::-webkit-scrollbar-thumb:hover, #table-container::-webkit-scrollbar-thumb:hover { background: #444; }
+    
+        /* Кнопка открытия/закрытия панели (мобильная) — компактная */
+        #btnToggleSidebar {
+            display: none;
+            position: fixed;
+            top: 8px; left: 8px;
+            z-index: 60;
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            background: rgba(35,35,35,0.92);
+            border: 1px solid var(--border-light);
+            color: var(--text-bright);
+            font-size: 18px;
+            align-items: center; justify-content: center;
+            padding: 0;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+        }
+        #btnToggleSidebar:active { background: #333; }
+        #btnToggleSidebar.editing-hide { display: none !important; }
+        #btnFullscreen {
+            display: none;
+            position: fixed;
+            top: 8px; left: 50px;
+            z-index: 60;
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            background: rgba(35,35,35,0.92);
+            border: 1px solid var(--border-light);
+            color: var(--text-bright);
+            font-size: 15px;
+            align-items: center; justify-content: center;
+            padding: 0;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+        }
+        #btnFullscreen:active { background: #333; }
+        body.coord-editing #btnFullscreen { display: none !important; }
+        /* полноэкран: меню ☰ и FS обе видны рядом (раньше FS наезжала на ☰) */
+        body.is-fullscreen #btnToggleSidebar { left: 8px; }
+        body.is-fullscreen #btnFullscreen { left: 50px; }
+        html:fullscreen, html:-webkit-full-screen,
+        body:fullscreen, body:-webkit-full-screen { background: #111; }
+
+        /* Кастомный цифровой блок для координат */
+        #coordPad {
+            display: none;
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            z-index: 80;
+            background: #1c1c1c;
+            border-top: 1px solid var(--border-light);
+            padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+            box-shadow: 0 -6px 22px rgba(0,0,0,0.55);
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        #coordPad.open { display: block; }
+        #coordPad button, #coordPad .cp-chip, #coordPad .cp-meta, #coordPad .cp-value, #coordPad .cp-label {
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            -webkit-touch-callout: none !important;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Панель отмены / повтора */
+        #undoBar {
+            position: fixed;
+            top: 8px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 70;
+            display: flex; gap: 6px; align-items: center;
+            background: rgba(35,35,35,0.92);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 4px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+            -webkit-user-select: none; user-select: none;
+        }
+        #undoBar button {
+            width: 40px; height: 36px; flex: none; padding: 0;
+            font-size: 18px; border-radius: 6px;
+            background: #2a2a2a; color: var(--text-bright);
+            border: 1px solid var(--border);
+        }
+        #undoBar button:disabled { opacity: 0.35; color: #666; }
+        #undoBar button:active:not(:disabled) { background: #3a3a3a; }
+        #undoBar .ub-label {
+            font-size: 10px; color: var(--text-dim); min-width: 40px; text-align: center;
+        }
+        #coordPad .cp-rowbar {
+            display: flex; align-items: stretch; gap: 5px;
+            margin-bottom: 6px; flex-wrap: nowrap;
+        }
+        #coordPad .cp-meta {
+            font-size: 10px; color: var(--text-dim); white-space: nowrap;
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 4px; min-width: 42px;
+        }
+        #coordPad .cp-meta b { color: var(--text-bright); font-weight: 600; font-size: 12px; }
+        #coordPad .cp-chip {
+            flex: 1; min-width: 0;
+            background: #121212; border: 1px solid var(--border);
+            border-radius: 6px; padding: 5px 6px; text-align: center;
+            cursor: pointer; transition: 0.12s;
+        }
+        #coordPad .cp-chip .ck { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.4px; }
+        #coordPad .cp-chip .cv {
+            font-size: 14px; color: var(--text-bright); font-family: 'Consolas', monospace;
+            font-weight: 600; margin-top: 1px; overflow: hidden; text-overflow: ellipsis;
+        }
+        #coordPad .cp-chip.active {
+            border-color: #c8c8c8; background: #2a2a2a;
+            box-shadow: inset 0 0 0 1px #888;
+        }
+        #coordPad .cp-chip.disabled { opacity: 0.35; pointer-events: none; }
+        #coordPad .cp-chip.missing { opacity: 0.4; }
+        #coordPad .cp-step {
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        #coordPad .cp-step button {
+            width: 40px; min-height: 34px; flex: none; padding: 0;
+            font-size: 16px; border-radius: 6px; background: #2a2a2a;
+        }
+        #coordPad .cp-cmd {
+            display: flex; gap: 3px; margin-bottom: 5px; flex-wrap: nowrap;
+        }
+        #coordPad .cp-cmd button {
+            flex: 1; min-width: 0; min-height: 28px; padding: 0 2px;
+            font-size: 10px; font-weight: 600; border-radius: 6px;
+            background: #2a2a2a; color: var(--text-dim);
+            border: 1px solid var(--border); letter-spacing: 0.1px;
+        }
+        #coordPad .cp-cmd button.active {
+            background: var(--btn-active); color: #1a1a1a; border-color: #fff;
+        }
+        #coordPad .cp-head-mini {
+            display: flex; align-items: center; gap: 6px;
+            margin-bottom: 4px; font-size: 11px; color: var(--text-dim);
+        }
+        #coordPad .cp-value {
+            flex: 1; background: #101010; border: 1px solid var(--border-light);
+            border-radius: 5px; padding: 5px 8px; font-size: 16px;
+            color: var(--text-bright); font-family: 'Consolas', monospace;
+            text-align: right; min-height: 34px; line-height: 22px;
+        }
+        #coordPad .cp-head-mini .cp-stepbtn {
+            width: 44px !important; min-height: 40px !important;
+            font-size: 18px !important; border-radius: 8px;
+            background: #2a2a2a; color: #b8d4ff; border: 1px solid var(--border);
+            flex: none; padding: 0;
+        }
+        #coordPad .cp-actions {
+            display: flex; gap: 4px; margin-bottom: 4px;
+        }
+        #coordPad .cp-actions button {
+            flex: 1; min-height: 30px; font-size: 12px; font-weight: 600;
+            border-radius: 6px; background: #2a2a2a; color: var(--text-bright);
+            border: 1px solid var(--border); padding: 0 4px;
+        }
+        #coordPad .cp-actions button.cp-add { background: #2a3a2a; border-color: #3a5a3a; color: #cfe8cf; }
+        #coordPad .cp-actions button.cp-rm { background: #3a2a2a; border-color: #6a4040; color: #f0c0c0; }
+        #coordPad .cp-actions button.cp-play { background: #2a3540; border-color: #3a5a7a; color: #b8d4ff; }
+        #coordPad .cp-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 3px;
+        }
+        #coordPad .cp-grid button {
+            min-height: 18px; font-size: 12px; border-radius: 4px;
+            background: #2a2a2a; color: var(--text-bright);
+            border: 1px solid var(--border); padding: 0;
+            font-weight: 500;
+        }
+        #coordPad .cp-grid button:active { background: #3a3a3a; }
+        #coordPad .cp-grid button.cp-ok {
+            background: #3d5a3d; border-color: #5a8a5a; grid-row: span 2;
+            min-height: 18px; font-size: 12px;
+        }
+        #coordPad .cp-grid button.cp-ok:active { background: #4a6e4a; }
+        #coordPad .cp-grid button.cp-del { background: #3a2a2a; border-color: #6a4040; }
+        #coordPad .cp-grid button.cp-sign { font-size: 11px; }
+        #coordPad .cp-grid button.cp-clear { font-size: 10px; }
+        body.coord-editing #vizZoomBar { bottom: auto; top: 12px; right: 12px; }
+        body.coord-editing #info-panel { bottom: auto; top: 12px; left: 12px; }
+        body.coord-editing #btnToggleSidebar { display: none !important; }
+
+        /* Плавающие кнопки зума визуализации (отдельно от UI) */
+        #vizZoomBar {
+            position: absolute;
+            right: 12px; bottom: 90px;
+            display: flex; flex-direction: column; gap: 6px;
+            z-index: 20;
+        }
+        #vizZoomBar button {
+            width: 40px; height: 40px; flex: none; padding: 0;
+            font-size: 18px; border-radius: 8px;
+            background: rgba(35,35,35,0.9);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+        }
+        #vizZoomBar #vizZoomLabel {
+            text-align: center; font-size: 11px; color: var(--text-bright);
+            background: rgba(26,26,26,0.9); border: 1px solid var(--border);
+            border-radius: 4px; padding: 3px 0; min-width: 40px;
+        }
+
+        /* Оверлей при открытой боковой панели на мобиле */
+        /* Оверлей отключён: визуализация остаётся активной при открытой панели */
+        #sidebarOverlay {
+            display: none !important;
+            pointer-events: none;
+        }
+
+        /* Ручка для свайпа панели влево/вправо */
+        #sidebarDragHandle {
+            display: none;
+            position: absolute;
+            top: 0; right: -14px; bottom: 0;
+            width: 18px;
+            cursor: ew-resize;
+            touch-action: none;
+            z-index: 55;
+        }
+        #sidebarDragHandle::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 5px;
+            width: 4px; height: 48px;
+            margin-top: -24px;
+            border-radius: 2px;
+            background: rgba(200,200,200,0.35);
+        }
+        #sidebar.dragging { transition: none !important; }
+
+        /* ===== MOBILE / TABLET ===== */
+        @media (max-width: 900px) {
+            body { flex-direction: column; }
+            #sidebar {
+                position: fixed;
+                top: 0; left: 0; bottom: 0;
+                width: min(86vw, 360px);
+                max-width: 100%;
+                transform: translateX(-105%);
+                border-right: 1px solid var(--border-light);
+                box-shadow: 8px 0 28px rgba(0,0,0,0.5);
+                padding: 12px;
+                transition: transform 0.22s ease;
+                will-change: transform;
+            }
+            #sidebarDragHandle { display: block; }
+            #btnToggleSidebar { display: flex; }
+            #btnFullscreen { display: flex; }
+            #main-wrapper { width: 100%; height: 100%; flex: 1; min-height: 0; }
+            #table-container { min-height: 120px; max-height: 36vh; }
+            .tool-grid { grid-template-columns: repeat(3, 1fr); }
+            input[type="number"] { width: 44px; font-size: 13px; padding: 4px 2px; }
+            #recipeTable input.coord-inp { width: 40px; max-width: 40px; font-size: 13px; padding: 5px 1px; }
+            select { width: 88px; font-size: 12px; padding: 4px; }
+            button { padding: 9px 8px; font-size: 13px; min-height: 38px; }
+            .btn-mini { padding: 6px 8px; font-size: 13px; min-height: 32px; }
+            #info-panel { font-size: 11px; padding: 8px 12px; min-width: 160px; bottom: 12px; left: 12px; }
+            #arcInfo { font-size: 11px; max-width: 70vw; }
+            #modeHint { font-size: 11px; max-width: 60vw; right: 10px; top: 10px; }
+            .fine-tune .row { flex-wrap: wrap; }
+            .mdb-modal { width: 96vw; max-height: 90vh; overflow-y: auto; }
+            body.coord-editing #main-wrapper {
+                padding-bottom: 0;
+            }
+            /* место под numpad — canvas сжимается, масштаб вида сохраняется */
+            body.coord-editing #coordPad.open ~ #main-wrapper,
+            body.coord-editing #main-wrapper {
+                height: calc(100% - var(--coord-pad-h, 0px));
+            }
+        }
+
+        @media (max-width: 480px) {
+            #sidebar { width: min(100vw, 100%); max-width: 100%; }
+            .tool-grid { grid-template-columns: repeat(2, 1fr); }
+            #info-panel { font-size: 10px; padding: 6px 10px; line-height: 1.5; }
+            #coordPad .cp-grid button { min-height: 17px; font-size: 12px; }
+            #coordPad .cp-chip .cv { font-size: 13px; }
+            #coordPad .cp-head-mini .cp-stepbtn { min-height: 38px !important; width: 42px !important; }
+        }
+    
+
+        /* Модальное окно управления профилем и БД */
+        .mdb-modal-bg {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.72);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .mdb-modal-bg.open { display: flex; }
+        .mdb-modal {
+            width: 480px; max-width: 94vw; background: var(--panel);
+            border: 1px solid var(--border-light); border-radius: 3px;
+            padding: 16px; color: var(--text); box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+        }
+        .mdb-modal h3 {
+            margin: 0 0 12px; font-size: 13px; text-transform: uppercase;
+            letter-spacing: 0.5px; color: var(--text-bright);
+            border-bottom: 1px solid var(--border); padding-bottom: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .mdb-modal .m-close { flex: none; width: 26px; padding: 2px 0; font-size: 14px; }
+        .mdb-grid { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; align-items: center; margin-bottom: 12px; }
+        .mdb-grid label { color: var(--text-dim); font-size: 12px; }
+        .mdb-grid input, .mdb-grid select {
+            width: 100%; background: var(--input); color: var(--text-bright);
+            border: 1px solid var(--border); border-radius: 2px; padding: 5px 7px; font-size: 12px; text-align: left;
+        }
+        .mdb-sec { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+        .mdb-status { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; background: #1a1a1a; padding: 6px 8px; border: 1px solid var(--border); border-radius: 2px; }
+        .mdb-btn-danger { border-color: #6b3030; color: #e89b9b; }
+        .mdb-btn-danger:hover { background: #4a2020; color: #fff; border-color: #a44; }
+    </style>
+</head>
+<body>
+
+<button id="btnToggleSidebar" type="button" aria-label="Меню" onclick="toggleSidebar()">☰</button>
+<button id="btnFullscreen" type="button" aria-label="Полный экран" onclick="toggleFullscreen()" title="Полный экран">⛶</button>
+<div id="undoBar" title="Отмена / повтор изменений">
+    <button type="button" id="btnUndo" onclick="undoEdit()" title="Отменить" disabled>↶</button>
+    <span class="ub-label" id="undoLabel">0</span>
+    <button type="button" id="btnRedo" onclick="redoEdit()" title="Повторить" disabled>↷</button>
+</div>
+<div id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<div id="sidebar">
+    <div id="sidebarDragHandle" title="Потяните, чтобы сдвинуть панель"></div>
+    <h2>
+        <span>Yilmaz CNC610 — XY Визуализатор</span>
+        <button type="button" class="m-close" style="display:none;width:28px;padding:2px 0;font-size:16px;" id="btnCloseSidebar" onclick="closeSidebar()">×</button>
+    </h2>
+
+    <div class="add-row-panel" style="flex-direction:column; gap:6px; align-items:stretch;">
+        <div style="display:flex; gap:6px;">
+            <button onclick="document.getElementById('csvInput').click()" style="flex:none; padding:6px 10px;">Загрузить MDB / CSV</button>
+            <button id="btnMdbManage" onclick="openMdbModal()" style="flex:none; padding:6px 10px;">Сохранить / БД</button>
+            <input type="text" id="profileFilter" placeholder="Поиск профиля…" oninput="filterProfiles()" style="flex:1; min-width:0;" disabled>
+        </div>
+        <select id="profileSelect" onchange="selectProfile(this.value)" style="width:100%;" disabled>
+            <option value="">— файл не загружен —</option>
+        </select>
+        <div id="profileTitle" style="font-size:12px; color:var(--text-dim);">Профиль: PLAFEN 60 STVORKA (встроенный)</div>
+    </div>
+    <input type="file" id="csvInput" accept=".mdb,.csv,.txt" style="display:none;">
+
+    <div class="tool-panel">
+        <div class="tp-head">
+            <span style="flex:1;" title="Выбранные инструменты показываются в таблице, на траектории и в движении">Инструменты</span>
+            <button onclick="setToolSelection('all')">Все</button>
+            <button onclick="setToolSelection('none')">Ничего</button>
+            <button onclick="setToolSelection('default')">T0+T1</button>
+        </div>
+        <div class="tool-grid" id="toolGrid"></div>
+        <details class="tool-offsets">
+            <summary>Глобальные смещения инструментов (x_tkm, y_tkm из прошивки)</summary>
+            <div style="margin:4px 0;">Позиция оси = координата программы − смещение (как в HARKOS: x_har = x − x_tkm).</div>
+            <div class="off-grid" id="offGrid"></div>
+        </details>
+    </div>
+
+    <details class="tool-panel" id="discPanel" open>
+        <summary style="cursor:pointer; font-size:12px; color:var(--text-dim);">Диск T0/T1 и заготовка</summary>
+        <div class="disc-grid">
+            <span>Толщина, мм</span><input type="number" id="discT" value="2.2" step="0.1" min="0">
+            <span>Длина, мм</span><input type="number" id="discLen" value="30" step="1" min="1">
+            <span>Толщина вдоль</span>
+            <select id="discAxis"><option value="y" selected>оси Y</option><option value="x">оси X</option></select>
+            <span>Диск от точки</span>
+            <select id="discAnchor"><option value="minus" selected>назад (−)</option><option value="center">по центру</option><option value="plus">вперёд (+)</option></select>
+            <span>Угол T0</span>
+            <select id="discE0"><option value="left" selected>нижн. прав. (−)</option><option value="right">верхн. прав. (+)</option></select>
+            <span>Угол T1</span>
+            <select id="discE1"><option value="right" selected>верхн. прав. (+)</option><option value="left">нижн. прав. (−)</option></select>
+            <label class="chk"><input type="checkbox" id="discShow" checked> Показывать диск</label>
+            <label class="chk" title="Показывается, пока не загружено фото (или фото скрыто)"><input type="checkbox" id="tplOn"> Шаблон заготовки (профиль из картинки)</label>
+            <label class="chk"><input type="checkbox" id="discCarve" checked> Диск вырезает материал шаблона</label>
+            <button onclick="togglePhotoAdjust()">Подгонка размера и положения (шаблон / фото)</button>
+        </div>
+    </details>
+
+    <div class="controls">
+        <div class="btn-group">
+            <button id="btnPlay" onclick="playSim()">Пуск</button>
+            <button id="btnStop" class="stop" onclick="pauseSim()">Пауза</button>
+            <button onclick="resetSim()">Сброс</button>
+        </div>
+        <div class="btn-group">
+            <button class="step" onclick="stepBack()">Шаг назад</button>
+            <button class="step" onclick="stepNext()">Шаг вперед</button>
+        </div>
+
+        <div class="speed-control">
+            <span>Скорость</span>
+            <input type="range" id="speedSlider" min="0" max="100" step="1" value="50" oninput="updateSpeedFromSlider(this.value)">
+            <span id="speedVal">0.05x</span>
+        </div>
+
+        <div class="btn-group" style="margin-top: 10px;">
+            <button class="view-btn" onclick="rotateView(-90)">-90°</button>
+            <button class="view-btn" onclick="rotateView(90)">+90°</button>
+            <button class="view-btn" onclick="toggleMirror('x')">Зеркало X</button>
+            <button class="view-btn" onclick="toggleMirror('y')">Зеркало Y</button>
+        </div>
+
+        <div class="zoom-controls">
+            <span>Масштаб вида</span>
+            <button onclick="zoomOut()">−</button>
+            <span id="zoomLevelText" style="width: 44px; text-align: center; color: var(--text-bright);">100%</span>
+            <button onclick="zoomIn()">+</button>
+        </div>
+
+        <div class="btn-group" style="margin-top: 10px;">
+            <button class="photo-btn" onclick="triggerPhotoUpload()">Загрузить фото</button>
+            <button id="btnPhotoAdjust" class="photo-btn" onclick="togglePhotoAdjust()">Подгонка</button>
+            <button id="btnPhotoVisible" class="photo-btn" onclick="togglePhotoVisible()">Скрыть</button>
+        </div>
+        <div class="photo-controls">
+            <label>Прозрачность <input type="range" id="photoOpacity" min="5" max="100" value="50" oninput="updatePhotoOpacity(this.value)"></label>
+            <span id="photoOpacityVal">50%</span>
+        </div>
+
+        <div class="fine-tune" id="fineTunePanel" style="display:none;">
+            <div class="layer-name" id="layerName">Нет активного слоя</div>
+            <div class="row">
+                <label>Сдвиг:</label>
+                <button onclick="layerNudge(-1,0)">←</button>
+                <button onclick="layerNudge(1,0)">→</button>
+                <button onclick="layerNudge(0,1)">↑</button>
+                <button onclick="layerNudge(0,-1)">↓</button>
+                <div class="step-mult" title="Шаг = 0.1 мм × множитель">
+                    <button data-mult="0.1" onclick="setStepMult(0.1)">0.1×</button>
+                    <button data-mult="1" class="active" onclick="setStepMult(1)">1×</button>
+                    <button data-mult="10" onclick="setStepMult(10)">10×</button>
+                </div>
+            </div>
+            <div class="row">
+                <label>Центр X:</label><input type="number" id="lyCX" class="wide" step="0.1" onchange="layerSetCX(this.value)"><span class="unit">мм</span>
+                <label style="min-width:auto; margin-left:6px;">Y:</label><input type="number" id="lyCY" class="wide" step="0.1" onchange="layerSetCY(this.value)"><span class="unit">мм</span>
+            </div>
+            <div class="row">
+                <label>Ширина:</label>
+                <button onclick="layerStepW(-1)">−</button>
+                <button onclick="layerStepW(1)">+</button>
+                <input type="number" id="lyW" class="wide" step="0.01" min="0.01" onchange="layerSetW(this.value)"><span class="unit">мм</span>
+            </div>
+            <div class="row">
+                <label>Высота:</label>
+                <button onclick="layerStepH(-1)">−</button>
+                <button onclick="layerStepH(1)">+</button>
+                <input type="number" id="lyH" class="wide" step="0.01" min="0.01" onchange="layerSetH(this.value)"><span class="unit">мм</span>
+            </div>
+            <div class="row wrap">
+                <label style="min-width:auto; display:flex; gap:4px; align-items:center; color:var(--text);"><input type="checkbox" id="lyLock" onchange="layerSetLock(this.checked)" style="margin:0;"> Пропорции</label>
+                <button onclick="layerRestoreAspect()">Вернуть исходные</button>
+                <label style="margin-left:6px; min-width:auto;">Всё:</label>
+                <button onclick="photoScaleFine(0.98)">−</button>
+                <button onclick="photoScaleFine(1.02)">+</button>
+            </div>
+            <div class="row">
+                <label>Поворот:</label>
+                <button onclick="photoRotateFine(-1)">−</button>
+                <button onclick="photoRotateFine(1)">+</button>
+                <input type="number" id="photoRotInput" class="wide" step="0.1" value="0" onchange="setPhotoRot(this.value)">
+                <span class="unit">°</span>
+            </div>
+            <div class="row">
+                <button onclick="togglePhotoMirror('x')">Отразить X</button>
+                <button onclick="togglePhotoMirror('y')">Отразить Y</button>
+                <button onclick="resetPhotoTransform()">Сброс</button>
+            </div>
+        </div>
+
+        <div class="btn-group" style="margin-top: 10px;">
+            <button id="btnDraw" class="draw-btn" onclick="toggleDrawMode()">Рисовать прямые</button>
+        </div>
+        <div class="btn-group">
+            <button onclick="undoSketch()">Отменить</button>
+            <button onclick="clearSketch()">Очистить</button>
+        </div>
+    </div>
+
+    <div class="add-row-panel">
+        <span style="font-size: 12px; line-height: 30px; color: var(--text-dim);">Позиция</span>
+        <input type="number" id="insertIndex" placeholder="№" min="1">
+        <button id="btnAddRow" onclick="insertRowByIndex()">Вставить строку</button>
+    </div>
+
+    <div id="table-container">
+        <table id="recipeTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Инстр</th>
+                    <th>Движение</th>
+                    <th>X</th>
+                    <th>Y</th>
+                    <th>R</th>
+                    <th>Напр.</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="main-wrapper">
+    <canvas id="canvasXY"></canvas>
+    <div id="arcInfo"></div>
+    <div id="modeHint"></div>
+    <div id="vizZoomBar">
+        <button type="button" onclick="zoomIn()" title="Приблизить">+</button>
+        <div id="vizZoomLabel">100%</div>
+        <button type="button" onclick="zoomOut()" title="Отдалить">−</button>
+        <button type="button" onclick="fitView()" title="Вписать траекторию">⊡</button>
+        <button type="button" id="btnFsZoom" onclick="toggleFullscreen()" title="Полный экран">⛶</button>
+    </div>
+    <div id="info-panel">
+        <div><span>Позиция X</span><span id="curX" class="val">0.00</span></div>
+        <div><span>Позиция Y</span><span id="curY" class="val">0.00</span></div>
+        <div><span>Инструмент</span><span id="curTool" class="val-cut">T0</span></div>
+        <div><span>Режим</span><span id="curMode" class="val">Ожидание</span></div>
+    </div>
+</div>
+
+<div class="mdb-modal-bg" id="mdbModalBg" onclick="if(event.target===this) closeMdbModal()">
+    <div class="mdb-modal">
+        <h3>
+            <span>Управление профилем и базой MDB</span>
+            <button class="m-close" onclick="closeMdbModal()">×</button>
+        </h3>
+        <div class="mdb-status" id="mdbServerStatus">Проверка подключения к server.py…</div>
+
+        <div class="mdb-grid">
+            <label>Слот (KYT):</label>
+            <input type="text" id="mSlot" readonly style="color:var(--text-dim);">
+            <label>Дата:</label>
+            <input type="text" id="mDate" placeholder="ДД.ММ.ГГГГ">
+            <label>Бренд:</label>
+            <input type="text" id="mBrand" placeholder="например REHAU">
+            <label>Серия / №:</label>
+            <input type="text" id="mSeries" placeholder="например 70">
+            <label>Тип / Имя:</label>
+            <input type="text" id="mType" placeholder="например STVORKA LAM">
+            <label>Ширина / Выс.:</label>
+            <div style="display:flex; gap:6px;">
+                <input type="text" id="mW" placeholder="Ширина">
+                <input type="text" id="mH" placeholder="Высота">
+            </div>
+            <label>Комментарий:</label>
+            <input type="text" id="mNote" placeholder="cnc610">
+            <label>Статус:</label>
+            <select id="mStatus">
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="PASSIVE">PASSIVE</option>
+            </select>
+        </div>
+
+        <div class="btn-group">
+            <button id="btnMdbSave" onclick="mdbSaveCurrent()">Сохранить (перезаписать)</button>
+            <button id="btnMdbSaveAs" onclick="mdbSaveAsNew()">Сохранить как новый</button>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); margin:4px 0 8px;">
+            <label style="cursor:pointer; display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="mUseGap" checked style="margin:0;">
+                При «Сохранить как новый» занимать первую свободную дырку в нумерации KYT
+            </label>
+        </div>
+
+        <div class="mdb-sec">
+            <div class="btn-group">
+                <button id="btnMdbDelete" class="mdb-btn-danger" onclick="mdbDeleteCurrent()">Удалить профиль из БД</button>
+                <button id="btnMdbCompact" onclick="mdbCompactDb()">Дефрагментация / Сжатие БД</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="photoInput" accept="image/*" style="display:none;">
+
+<!-- Кастомный цифровой блок для редактирования координат -->
+<div id="coordPad" aria-hidden="true">
+    <div class="cp-rowbar">
+        <div class="cp-meta">
+            <span>стр. <b id="cpMetaNum">—</b></span>
+            <b id="cpMetaTool">T0</b>
+        </div>
+        <div class="cp-chip" id="cpChipX" data-key="x" onclick="cpSelectKey('x')">
+            <div class="ck">X</div><div class="cv" id="cpChipXv">0</div>
+        </div>
+        <div class="cp-chip" id="cpChipY" data-key="y" onclick="cpSelectKey('y')">
+            <div class="ck">Y</div><div class="cv" id="cpChipYv">0</div>
+        </div>
+        <div class="cp-chip missing" id="cpChipR" data-key="r" onclick="cpSelectKey('r')">
+            <div class="ck">R</div><div class="cv" id="cpChipRv">—</div>
+        </div>
+        <div class="cp-step">
+            <button type="button" data-k="prevrow" title="Предыдущая строка">▲</button>
+            <button type="button" data-k="nextrow" title="Следующая строка">▼</button>
+        </div>
+        <button type="button" onclick="closeCoordPad()" style="flex:none;width:34px;min-height:100%;padding:0;align-self:stretch;">×</button>
+    </div>
+    <div class="cp-cmd" id="cpCmdBar">
+        <button type="button" data-cmd="C04" onclick="cpSetCmd('C04')">X+Y</button>
+        <button type="button" data-cmd="C02" onclick="cpSetCmd('C02')">X</button>
+        <button type="button" data-cmd="C03" onclick="cpSetCmd('C03')">Y</button>
+        <button type="button" data-cmd="C05" onclick="cpSetCmd('C05')">отн.</button>
+        <button type="button" data-cmd="C06" onclick="cpSetCmd('C06')">дуга CW</button>
+        <button type="button" data-cmd="C07" onclick="cpSetCmd('C07')">дуга CCW</button>
+    </div>
+    <div class="cp-head-mini">
+        <span id="cpLabel">X</span>
+        <div class="cp-value" id="cpValue">0</div>
+        <button type="button" class="cp-stepbtn" data-k="up" title="+0.1 мм">▲</button>
+        <button type="button" class="cp-stepbtn" data-k="down" title="-0.1 мм">▼</button>
+    </div>
+    <div class="cp-actions">
+        <button type="button" class="cp-add" data-k="addrow" title="Вставить строку после текущей">+ строка</button>
+        <button type="button" class="cp-rm" data-k="delrow" title="Удалить текущую строку">− строка</button>
+        <button type="button" class="cp-play" data-k="play" title="Запуск полной анимации">▶ пуск</button>
+    </div>
+    <div class="cp-grid">
+        <button type="button" data-k="7">7</button>
+        <button type="button" data-k="8">8</button>
+        <button type="button" data-k="9">9</button>
+        <button type="button" class="cp-del" data-k="del">⌫</button>
+        <button type="button" data-k="4">4</button>
+        <button type="button" data-k="5">5</button>
+        <button type="button" data-k="6">6</button>
+        <button type="button" class="cp-clear" data-k="clear">C</button>
+        <button type="button" data-k="1">1</button>
+        <button type="button" data-k="2">2</button>
+        <button type="button" data-k="3">3</button>
+        <button type="button" class="cp-ok" data-k="ok">OK</button>
+        <button type="button" class="cp-sign" data-k="sign">+/−</button>
+        <button type="button" data-k="0">0</button>
+        <button type="button" data-k=".">.</button>
+    </div>
+</div>
+
+<script>
+    // --- ИСХОДНЫЙ РЕЦЕПТ: PLAFEN 60 STVORKA (программа 34301 от 24.02.2026), все инструменты ---
+    // Запятая в данных = десятичный разделитель (20,5 = 20.5). id = номер строки программы.
+    let originalRawRecipe = [
+        { id: '34303', tool: 'T01', cmd: 'C04', x: 6.5, y: 0.3, r: 0 },
+        { id: '34304', tool: 'T23', cmd: 'C04', x: 88, y: 6, r: 0 },
+        { id: '34305', tool: 'T23', cmd: 'C02', x: 83.5, y: 0, r: 0 },
+        { id: '34306', tool: 'T22', cmd: 'C03', x: 0, y: -3, r: 0 },
+        { id: '34307', tool: 'T22', cmd: 'C05', x: -2, y: -1, r: 0 },
+        { id: '34308', tool: 'T01', cmd: 'C06', x: -6, y: 4, r: 4, isCW: true },
+        { id: '34309', tool: 'T00', cmd: 'C03', x: 0, y: 14.2, r: 0 },
+        { id: '34310', tool: 'T25', cmd: 'C04', x: 300, y: -30, r: 0 },
+        { id: '34311', tool: 'T00', cmd: 'C02', x: 27.55, y: 0, r: 0 },
+        { id: '34312', tool: 'T00', cmd: 'C03', x: 0, y: 20.5, r: 0 },
+        { id: '34313', tool: 'T00', cmd: 'C02', x: 32, y: 0, r: 0 },
+        { id: '34314', tool: 'T00', cmd: 'C03', x: 0, y: 22.3, r: 0 },
+        { id: '34315', tool: 'T00', cmd: 'C02', x: 45, y: 0, r: 0 },
+        { id: '34316', tool: 'T00', cmd: 'C03', x: 0, y: 30, r: 0 },
+        { id: '34317', tool: 'T01', cmd: 'C02', x: 27.7, y: 0, r: 0 },
+        { id: '34318', tool: 'T01', cmd: 'C03', x: 0, y: 37, r: 0 },
+        { id: '34319', tool: 'T01', cmd: 'C02', x: 45, y: 0, r: 0 },
+        { id: '34320', tool: 'T01', cmd: 'C03', x: 0, y: 32, r: 0 },
+        { id: '34321', tool: 'T01', cmd: 'C02', x: 32, y: 0, r: 0 },
+        { id: '34322', tool: 'T01', cmd: 'C03', x: 0, y: 38.7, r: 0 },
+        { id: '34323', tool: 'T01', cmd: 'C02', x: 28, y: 0, r: 0 },
+        { id: '34324', tool: 'T00', cmd: 'C03', x: 0, y: 52, r: 0 },
+        { id: '34325', tool: 'T00', cmd: 'C02', x: 34.5, y: 0, r: 0 },
+        { id: '34326', tool: 'T01', cmd: 'C03', x: 0, y: 58, r: 0 },
+        { id: '34327', tool: 'T00', cmd: 'C02', x: 28, y: 0, r: 0 },
+        { id: '34328', tool: 'T01', cmd: 'C03', x: 0, y: 62, r: 0 },
+        { id: '34329', tool: 'T02', cmd: 'C04', x: 9, y: 22, r: 0 },
+        { id: '34330', tool: 'T21', cmd: 'C04', x: 108.3, y: 30, r: 0 },
+        { id: '34331', tool: 'T02', cmd: 'C03', x: 0, y: 9, r: 0 },
+        { id: '34332', tool: 'T21', cmd: 'C03', x: 0, y: 51, r: 0 },
+        { id: '34333', tool: 'T02', cmd: 'C03', x: 0, y: 12.6, r: 0 },
+        { id: '34334', tool: 'T21', cmd: 'C03', x: 0, y: 45.9, r: 0 },
+        { id: '34335', tool: 'T02', cmd: 'C02', x: 25.5, y: 0, r: 0 },
+        { id: '34336', tool: 'T21', cmd: 'C02', x: 114, y: 0, r: 0 },
+        { id: '34337', tool: 'T02', cmd: 'C05', x: 0, y: 1, r: 0 },
+        { id: '34338', tool: 'T21', cmd: 'C04', x: 93, y: 46.5, r: 0 },
+        { id: '34339', tool: 'T21', cmd: 'C05', x: -5, y: -10, r: 0 },
+        { id: '34340', tool: 'T25', cmd: 'C04', x: 300, y: -40, r: 0 },
+        { id: '34341', tool: 'T05', cmd: 'C04', x: 118, y: 47, r: 0 },
+        { id: '34342', tool: 'T05', cmd: 'C02', x: 116, y: 0, r: 0 },
+        { id: '34343', tool: 'T05', cmd: 'C04', x: 114, y: 52, r: 0 },
+        { id: '34344', tool: 'T04', cmd: 'C04', x: 109, y: 63, r: 0 },
+        { id: '34345', tool: 'T05', cmd: 'C05', x: 5, y: 5, r: 0 },
+        { id: '34346', tool: 'T03', cmd: 'C04', x: 110, y: 58.25, r: 0 },
+        { id: '34347', tool: 'T25', cmd: 'C04', x: 215, y: 0.2, r: 0 },
+        { id: '34348', tool: 'T03', cmd: 'C02', x: -102, y: 0, r: 0 },
+        { id: '34349', tool: 'T25', cmd: 'C04', x: -10, y: 0.7, r: 0 },
+        { id: '34350', tool: 'T03', cmd: 'C04', x: -110, y: 110, r: 0 },
+        { id: '34351', tool: 'T25', cmd: 'C04', x: 300, y: -40, r: 0 }
+    ];
+
+    function normTool(code) { return 'T' + parseInt(String(code).replace(/\D/g, ''), 10); } // T00->T0, T21->T21
+    let originalRecipe = originalRawRecipe
+        .map(step => ({ ...step, tool: normTool(step.tool), isCW: step.cmd === 'C06' }));
+
+    let recipe = JSON.parse(JSON.stringify(originalRecipe));
+
+    // ===== История правок (до 300 шагов) =====
+    const HIST_MAX = 300;
+    let histPast = [];
+    let histFuture = [];
+    let histApplying = false;
+
+    function cloneRecipe(r) { return JSON.parse(JSON.stringify(r)); }
+    function recipesEqual(a, b) {
+        try { return JSON.stringify(a) === JSON.stringify(b); } catch (_) { return false; }
+    }
+    function updateUndoUI() {
+        const bu = document.getElementById('btnUndo');
+        const br = document.getElementById('btnRedo');
+        const lb = document.getElementById('undoLabel');
+        if (bu) bu.disabled = !histPast.length;
+        if (br) br.disabled = !histFuture.length;
+        if (lb) lb.textContent = histPast.length ? String(histPast.length) : '0';
+    }
+    function pushHistory() {
+        if (histApplying) return;
+        const snap = cloneRecipe(recipe);
+        if (histPast.length && recipesEqual(histPast[histPast.length - 1], snap)) return;
+        histPast.push(snap);
+        if (histPast.length > HIST_MAX) histPast.shift();
+        histFuture = [];
+        updateUndoUI();
+    }
+    function applyHistoryState(state) {
+        histApplying = true;
+        recipe = cloneRecipe(state);
+        recalcSegments(true);
+        trailXY = [];
+        if (typeof coordPadOpen !== 'undefined' && coordPadOpen) {
+            if (cpIndex >= recipe.length) cpIndex = recipe.length - 1;
+            if (cpIndex < 0 || !recipe.length) {
+                // leave pad open only if there is data
+            } else {
+                const st = recipe[cpIndex];
+                if (st) {
+                    if (typeof cpKeyAllowed === 'function' && !cpKeyAllowed(st, cpKey)) {
+                        cpKey = cpKeyAllowed(st, 'x') ? 'x' : (cpKeyAllowed(st, 'y') ? 'y' : 'r');
+                    }
+                    cpBuffer = (typeof fmtCoord === 'function') ? fmtCoord(st[cpKey]) : String(st[cpKey] ?? 0);
+                    cpFresh = true;
+                    if (typeof updateCpDisplay === 'function') updateCpDisplay();
+                    if (typeof highlightEditSegment === 'function') highlightEditSegment(cpIndex);
+                }
+            }
+            if (typeof updateRowSelection === 'function') updateRowSelection(cpIndex);
+        } else {
+            if (typeof renderTable === 'function') renderTable();
+        }
+        if (typeof redraw === 'function') redraw();
+        histApplying = false;
+        updateUndoUI();
+    }
+    function undoEdit() {
+        if (!histPast.length) return;
+        histFuture.push(cloneRecipe(recipe));
+        if (histFuture.length > HIST_MAX) histFuture.shift();
+        applyHistoryState(histPast.pop());
+    }
+    function redoEdit() {
+        if (!histFuture.length) return;
+        histPast.push(cloneRecipe(recipe));
+        if (histPast.length > HIST_MAX) histPast.shift();
+        applyHistoryState(histFuture.pop());
+    }
+
+    const canvasXY = document.getElementById('canvasXY');
+    const ctxXY = canvasXY.getContext('2d');
+
+    let baseScale = 1, zoomFactor = 1.0, offsetX = 0, offsetY = 0;
+    let viewRot = 0, mirrorX = 1, mirrorY = 1;
+
+    let trailXY = [];
+    let isPlaying = false, isManualStep = false, animFrame = null;
+    let currentIdx = -1, progress = 0, speedMult = 0.05;
+    let selectedRowIdx = -1, activeArcCenter = null;
+    let curX = 0, curY = 0, curTool = 'T0';
+
+    let isDragging = false, dragStartX = 0, dragStartY = 0;
+
+    let photoImage = null;
+    let photoVisible = true;
+    let photoAdjustMode = false;
+    let photoTX = 0, photoTY = 0;
+    let photoScaleF = 1.0;
+    let photoRot = 0;
+    let photoMirrorX = 1, photoMirrorY = 1;
+    let photoOpacity = 0.5;
+    let isDraggingPhoto = false, photoDragStartX = 0, photoDragStartY = 0;
+    let stepMult = 1;
+
+    let isDrawMode = false;
+    let drawFirstPoint = null;
+    let drawPreview = null;
+    let sketchLines = [];
+
+    function getScreenPos(px, py) {
+        let tx = px * mirrorX, ty = py * mirrorY;
+        if (viewRot === 90) { let temp = tx; tx = -ty; ty = temp; }
+        else if (viewRot === 180) { tx = -tx; ty = -ty; }
+        else if (viewRot === 270) { let temp = tx; tx = ty; ty = -temp; }
+        return { x: offsetX + tx * baseScale * zoomFactor, y: offsetY - ty * baseScale * zoomFactor };
+    }
+
+    function getMachinePos(sx, sy) {
+        let tx = (sx - offsetX) / (baseScale * zoomFactor);
+        let ty = -(sy - offsetY) / (baseScale * zoomFactor);
+        if (viewRot === 90) { let temp = tx; tx = ty; ty = -temp; }
+        else if (viewRot === 180) { tx = -tx; ty = -ty; }
+        else if (viewRot === 270) { let temp = tx; tx = -ty; ty = temp; }
+        tx /= mirrorX; ty /= mirrorY;
+        return { x: tx, y: ty };
+    }
+
+    // ===== СЛОИ: фото и шаблон заготовки. Положение и размер — в мм станка, ширина и высота независимы =====
+    const TPL = {"aspect":1.66863,"polys":[[[0.0,0.2842],[0.0009,0.0545],[0.0035,0.0457],[0.0229,0.0147],[0.038,0.0015],[0.7343,0.0],[0.737,0.0059],[0.7343,0.0574],[0.7326,0.0589],[0.7123,0.0589],[0.7034,0.0515],[0.6999,0.0442],[0.6893,0.0383],[0.6523,0.0383],[0.6425,0.0442],[0.6364,0.0545],[0.6337,0.0633],[0.6337,0.1237],[0.6381,0.1325],[0.6425,0.1355],[0.6584,0.1355],[0.6646,0.1281],[0.6664,0.1163],[0.6681,0.1149],[0.7343,0.1163],[0.7343,0.1649],[0.7308,0.1664],[0.7026,0.1561],[0.6929,0.1561],[0.6858,0.1664],[0.6858,0.5714],[0.662,0.7585],[0.6646,0.7644],[0.6708,0.7703],[0.7158,0.7703],[0.7176,0.7599],[0.7229,0.7555],[0.729,0.7585],[0.7326,0.7703],[0.8553,0.7703],[0.8561,0.7585],[0.8588,0.7555],[0.8747,0.7555],[0.902,0.7703],[0.9276,0.7703],[0.9312,0.7658],[0.9294,0.7614],[0.9064,0.7364],[0.9073,0.7305],[0.9294,0.7069],[0.9126,0.6892],[0.9056,0.6745],[0.9038,0.6598],[0.9064,0.6554],[0.91,0.6554],[0.9259,0.6848],[0.94,0.6981],[0.9488,0.7025],[0.9629,0.7054],[0.9771,0.704],[0.9885,0.6981],[0.9956,0.6892],[1.0,0.6907],[0.9947,0.7555],[0.9929,0.757],[0.9938,0.7658],[0.9841,0.8262],[0.9779,0.8792],[0.9762,0.8851],[0.9135,0.9867],[0.902,0.9971],[0.895,1.0],[0.2877,1.0],[0.286,0.9985],[0.2877,0.9617],[0.3213,0.9499],[0.3239,0.944],[0.3239,0.7806],[0.3169,0.7703],[0.2657,0.7393],[0.2595,0.7334],[0.2595,0.595],[0.2904,0.5935],[0.2913,0.567],[0.2939,0.5641],[0.3204,0.5655],[0.3239,0.57],[0.3239,0.5847],[0.3274,0.5906],[0.338,0.5906],[0.3689,0.5832],[0.3733,0.5803],[0.4034,0.5744],[0.4095,0.57],[0.4122,0.5596],[0.4122,0.4875],[0.4175,0.4801],[0.4122,0.4713],[0.4122,0.3962],[0.4104,0.3903],[0.4042,0.3844],[0.391,0.38],[0.3283,0.3667],[0.3239,0.3726],[0.3239,0.3888],[0.3213,0.3918],[0.293,0.3932],[0.2913,0.3918],[0.2904,0.3652],[0.2595,0.3638],[0.2595,0.3432],[0.2657,0.3387],[0.2904,0.3328],[0.2974,0.324],[0.2983,0.2445],[0.2948,0.2342],[0.2886,0.2297],[0.1403,0.2297],[0.1395,0.243],[0.1377,0.2445],[0.1041,0.2445],[0.0891,0.2312],[0.0662,0.2312],[0.0538,0.243],[0.0415,0.2445],[0.0397,0.2474],[0.0397,0.2577],[0.0362,0.2607],[0.0168,0.2622],[0.0141,0.2754],[0.015,0.2813],[0.0538,0.3108],[0.0583,0.3093],[0.0644,0.3122],[0.0662,0.3196],[0.0609,0.3255],[0.0503,0.3255],[0.0035,0.2916]],[[0.2718,0.109],[0.2771,0.1178],[0.6019,0.1178],[0.6072,0.1105],[0.6072,0.0457],[0.6028,0.0383],[0.2754,0.0383],[0.2718,0.0457]],[[0.2595,0.1929],[0.2595,0.0427],[0.256,0.0383],[0.0494,0.0383],[0.0335,0.0648],[0.0335,0.1267],[0.0371,0.134],[0.1236,0.1355],[0.1403,0.1473],[0.1474,0.1576],[0.1518,0.1708],[0.1527,0.1915],[0.1562,0.1988],[0.2551,0.1988]],[[0.0265,0.1929],[0.0309,0.2003],[0.038,0.2003],[0.0388,0.1988],[0.0371,0.1973],[0.0362,0.19],[0.0371,0.1856],[0.0415,0.1811],[0.0477,0.1811],[0.053,0.1856],[0.1068,0.1856],[0.12,0.1811],[0.1244,0.187],[0.1253,0.1811],[0.1244,0.1753],[0.1209,0.1694],[0.1156,0.1664],[0.0424,0.1664],[0.0327,0.1723],[0.0282,0.1797]],[[0.2718,0.1384],[0.2718,0.187],[0.2736,0.1959],[0.2771,0.1988],[0.2974,0.2003],[0.3107,0.2077],[0.3222,0.2239],[0.3248,0.2342],[0.3248,0.2445],[0.3301,0.2518],[0.654,0.2518],[0.6584,0.2459],[0.6584,0.1738],[0.654,0.1679],[0.6399,0.1679],[0.6258,0.162],[0.6161,0.1532],[0.6055,0.1311],[0.2754,0.1311]],[[0.2921,0.7202],[0.3036,0.7261],[0.3363,0.7261],[0.3407,0.7202],[0.3407,0.701],[0.3469,0.6981],[0.3504,0.701],[0.3513,0.7216],[0.3566,0.7261],[0.6328,0.7261],[0.6372,0.7231],[0.6408,0.7084],[0.6487,0.6348],[0.6531,0.6127],[0.6584,0.5685],[0.6584,0.2739],[0.6549,0.268],[0.6514,0.2666],[0.3283,0.268],[0.3248,0.2754],[0.3248,0.327],[0.3283,0.3328],[0.4122,0.3535],[0.4254,0.3623],[0.436,0.377],[0.4387,0.3873],[0.4395,0.4404],[0.4431,0.4448],[0.459,0.4477],[0.4634,0.4536],[0.4634,0.5052],[0.459,0.5096],[0.444,0.514],[0.4395,0.5184],[0.4387,0.5685],[0.4369,0.5773],[0.4307,0.5891],[0.4201,0.5994],[0.3989,0.6082],[0.2904,0.6333],[0.2868,0.6406],[0.2868,0.7113]],[[0.9214,0.7349],[0.9409,0.757],[0.9532,0.757],[0.9568,0.7482],[0.9629,0.7423],[0.9832,0.7408],[0.9859,0.7158],[0.9726,0.7202],[0.9594,0.7202],[0.9391,0.7128]],[[0.8711,0.8306],[0.8756,0.838],[0.8817,0.8409],[0.9435,0.8409],[0.9523,0.8365],[0.9576,0.8277],[0.9612,0.8056],[0.9585,0.8012],[0.9576,0.8027],[0.9576,0.8159],[0.955,0.8189],[0.9462,0.8189],[0.9391,0.8144],[0.8906,0.8144],[0.8835,0.8189],[0.8747,0.8189],[0.872,0.8159]],[[0.3398,0.7482],[0.3504,0.7673],[0.3504,0.8468],[0.3548,0.8527],[0.3857,0.8454],[0.4157,0.8336],[0.4457,0.8262],[0.5181,0.8012],[0.5666,0.7879],[0.5737,0.7835],[0.6328,0.7658],[0.6346,0.7629],[0.6346,0.7452],[0.6328,0.7423],[0.3425,0.7423]],[[0.3504,0.8748],[0.3504,0.9558],[0.3548,0.9617],[0.7079,0.9617],[0.7096,0.9573],[0.6973,0.8719],[0.6946,0.8689],[0.6946,0.8601],[0.6911,0.8454],[0.6867,0.8071],[0.6823,0.8012],[0.6673,0.8012],[0.6584,0.7982],[0.6478,0.7909],[0.6381,0.7791],[0.6019,0.7879],[0.5869,0.7953],[0.5516,0.8041],[0.5207,0.8159],[0.481,0.8262],[0.4748,0.8306],[0.3548,0.8675]],[[0.7008,0.8056],[0.7079,0.863],[0.7114,0.8748],[0.7202,0.9411],[0.722,0.9426],[0.7237,0.9573],[0.729,0.9632],[0.8844,0.9632],[0.8879,0.9617],[0.9382,0.8807],[0.9365,0.8733],[0.8808,0.8733],[0.8641,0.8675],[0.8544,0.8586],[0.8464,0.8454],[0.8438,0.8351],[0.8438,0.8085],[0.8394,0.8012],[0.7034,0.8012]]]};
+    function makeLayer(w, h, cx, cy) { return { cx, cy, w, h, rot: 0, mx: 1, my: 1 }; }
+    const photoL = makeLayer(100, 60, 50, 30);
+    const tplL = makeLayer(100, 100 / TPL.aspect, 50, 30);
+    let tplOn = false, tplPlaced = false, lockAspect = false;
+    function usingPhoto() { return !!photoImage && photoVisible; }
+    function activeLayer() { return usingPhoto() ? photoL : (tplOn ? tplL : null); }
+    function showTemplate() { return tplOn && !usingPhoto(); }
+    function layerAspectHW() { return usingPhoto() ? photoImage.height / photoImage.width : 1 / TPL.aspect; }
+    function viewCenterMachine() { return getMachinePos(canvasXY.width / 2, canvasXY.height / 2); }
+    function fitLayerToView(L, aspectHW) {
+        const s = baseScale * zoomFactor;
+        const maxW = canvasXY.width * 0.9 / s, maxH = canvasXY.height * 0.9 / s;
+        L.w = Math.min(maxW, maxH / aspectHW); L.h = L.w * aspectHW;
+        const c = viewCenterMachine(); L.cx = c.x; L.cy = c.y; L.rot = 0; L.mx = 1; L.my = 1;
+    }
+    function capturePhotoAnchor() {}      // положение теперь хранится в мм, привязка не нужна
+    function restorePhotoFromAnchor() {}
+
+    function triggerPhotoUpload() { document.getElementById('photoInput').click(); }
+
+    document.getElementById('photoInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                photoImage = img;
+                photoVisible = true;
+                fitLayerToView(photoL, img.height / img.width);
+                document.getElementById('btnPhotoVisible').innerText = 'Скрыть';
+                updatePhotoInputs();
+                updatePhotoAdjustBtn();
+                redraw();
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    });
+
+    function resetPhotoTransform() {
+        if (usingPhoto()) fitLayerToView(photoL, photoImage.height / photoImage.width);
+        else if (tplOn) { tplL.w = 100; tplL.h = 100 / TPL.aspect; tplL.cx = 50; tplL.cy = 30; tplL.rot = 0; tplL.mx = 1; tplL.my = 1; }
+        else return;
+        updatePhotoInputs(); redraw();
+    }
+
+    function togglePhotoAdjust() {
+        if (!activeLayer()) { alert('Сначала загрузите фото или включите «Шаблон заготовки»'); return; }
+        if (isDrawMode) toggleDrawMode();
+        photoAdjustMode = !photoAdjustMode;
+        updatePhotoAdjustBtn();
+        updatePhotoInputs();
+        updateModeHint();
+        redraw();
+    }
+
+    function updatePhotoAdjustBtn() {
+        const btn = document.getElementById('btnPhotoAdjust');
+        btn.classList.toggle('active', photoAdjustMode);
+        btn.innerText = photoAdjustMode ? 'Подгонка (ВКЛ)' : 'Подгонка';
+        canvasXY.classList.toggle('photo-adjust', photoAdjustMode);
+        document.getElementById('fineTunePanel').style.display = photoAdjustMode ? 'block' : 'none';
+    }
+
+    function layersChanged() {         // изменился набор активных слоёв
+        if (photoAdjustMode && !activeLayer()) { photoAdjustMode = false; updatePhotoAdjustBtn(); updateModeHint(); }
+        updatePhotoInputs(); redraw();
+    }
+
+    function togglePhotoVisible() {
+        if (!photoImage) return;
+        photoVisible = !photoVisible;
+        document.getElementById('btnPhotoVisible').innerText = photoVisible ? 'Скрыть' : 'Показать';
+        layersChanged();
+    }
+
+    function updatePhotoOpacity(v) {
+        photoOpacity = v / 100;
+        document.getElementById('photoOpacityVal').innerText = v + '%';
+        redraw();
+    }
+
+    function setStepMult(m) {
+        stepMult = m;
+        document.querySelectorAll('.fine-tune .step-mult button').forEach(b => {
+            b.classList.toggle('active', parseFloat(b.dataset.mult) === m);
+        });
+    }
+
+    function layerNudge(dx, dy) {       // направления — как на экране, шаг 0.1 мм × множитель
+        const L = activeLayer(); if (!L) return;
+        const a = getMachinePos(0, 0), r = getMachinePos(1, 0), u = getMachinePos(0, -1);
+        const rx = r.x - a.x, ry = r.y - a.y, rl = Math.hypot(rx, ry) || 1;
+        const ux = u.x - a.x, uy = u.y - a.y, ul = Math.hypot(ux, uy) || 1;
+        const st = 0.1 * stepMult;
+        L.cx += (dx * rx / rl + dy * ux / ul) * st;
+        L.cy += (dx * ry / rl + dy * uy / ul) * st;
+        updatePhotoInputs(); redraw();
+    }
+    function layerSetCX(v) { const L = activeLayer(); v = parseFloat(v); if (!L || !isFinite(v)) return; L.cx = v; redraw(); }
+    function layerSetCY(v) { const L = activeLayer(); v = parseFloat(v); if (!L || !isFinite(v)) return; L.cy = v; redraw(); }
+    function layerSetW(v) {
+        const L = activeLayer(); v = parseFloat(v); if (!L || !(v > 0)) return;
+        if (lockAspect) L.h = L.h * v / L.w;
+        L.w = v; updatePhotoInputs(); redraw();
+    }
+    function layerSetH(v) {
+        const L = activeLayer(); v = parseFloat(v); if (!L || !(v > 0)) return;
+        if (lockAspect) L.w = L.w * v / L.h;
+        L.h = v; updatePhotoInputs(); redraw();
+    }
+    function layerStepW(d) { const L = activeLayer(); if (L) layerSetW(+(L.w + d * 0.1 * stepMult).toFixed(4)); }
+    function layerStepH(d) { const L = activeLayer(); if (L) layerSetH(+(L.h + d * 0.1 * stepMult).toFixed(4)); }
+    function layerSetLock(on) { lockAspect = on; }
+    function layerRestoreAspect() { const L = activeLayer(); if (!L) return; L.h = L.w * layerAspectHW(); updatePhotoInputs(); redraw(); }
+
+    function layerScaleBy(fx, fy) { const L = activeLayer(); if (!L) return; L.w *= fx; L.h *= fy; updatePhotoInputs(); redraw(); }
+    function photoScaleFine(f) {        // пропорциональное масштабирование по обоим осям
+        let adj = f > 1 ? 1 + (f - 1) * stepMult : 1 - (1 - f) * stepMult;
+        layerScaleBy(adj, adj);
+    }
+
+    function photoRotateFine(deg) {
+        const L = activeLayer(); if (!L) return;
+        L.rot += deg * stepMult * 0.2;
+        updatePhotoInputs(); redraw();
+    }
+
+    function setPhotoRot(deg) {
+        const L = activeLayer(); const d = parseFloat(deg);
+        if (!L || !isFinite(d)) return;
+        L.rot = d; redraw();
+    }
+
+    function updatePhotoInputs() {
+        const L = activeLayer();
+        const nm = document.getElementById('layerName');
+        if (nm) nm.textContent = L ? (L === photoL ? 'Слой: фото' : 'Слой: шаблон заготовки') : 'Нет активного слоя (загрузите фото или включите шаблон)';
+        if (!L) return;
+        const set = (id, v) => { const e = document.getElementById(id); if (e && document.activeElement !== e) e.value = v; };
+        set('lyW', L.w.toFixed(2)); set('lyH', L.h.toFixed(2));
+        set('lyCX', L.cx.toFixed(2)); set('lyCY', L.cy.toFixed(2));
+        set('photoRotInput', L.rot.toFixed(2));
+        const lk = document.getElementById('lyLock'); if (lk) lk.checked = lockAspect;
+    }
+
+    function togglePhotoMirror(axis) {
+        const L = activeLayer(); if (!L) return;
+        if (axis === 'x') L.mx *= -1; else L.my *= -1;
+        redraw();
+    }
+
+    // Матрица слоя: мм станка -> пиксели экрана (учитывает поворот и зеркала вида), затем поворот слоя
+    function applyLayerTransform(ctx, L) {
+        const c = getScreenPos(L.cx, L.cy), o = getScreenPos(0, 0);
+        const ex = getScreenPos(1, 0), ey = getScreenPos(0, 1);
+        ctx.translate(c.x, c.y);
+        ctx.transform(ex.x - o.x, ex.y - o.y, ey.x - o.x, ey.y - o.y, 0, 0);
+        ctx.rotate(L.rot * Math.PI / 180);          // положительный угол — против часовой стрелки в координатах станка
+    }
+    function layerCorners(L) {
+        const c = Math.cos(L.rot * Math.PI / 180), s = Math.sin(L.rot * Math.PI / 180);
+        return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => {
+            const lx = a * L.w / 2, ly = b * L.h / 2;
+            return { x: L.cx + c * lx - s * ly, y: L.cy + s * lx + c * ly };
+        });
+    }
+    function tplMachinePolys() {
+        const L = tplL, c = Math.cos(L.rot * Math.PI / 180), s = Math.sin(L.rot * Math.PI / 180);
+        return TPL.polys.map(poly => poly.map(([u, v]) => {
+            const lx = (u - 0.5) * L.w * L.mx, ly = (v - 0.5) * L.h * L.my;
+            return { x: L.cx + c * lx - s * ly, y: L.cy + s * lx + c * ly };
+        }));
+    }
+
+    function toggleDrawMode() {
+        if (!isDrawMode) {
+            pauseSim();
+            if (photoAdjustMode) { photoAdjustMode = false; updatePhotoAdjustBtn(); }
+        }
+        isDrawMode = !isDrawMode;
+        const btn = document.getElementById('btnDraw');
+        btn.classList.toggle('active', isDrawMode);
+        btn.innerText = isDrawMode ? 'Рисование (ВКЛ)' : 'Рисовать прямые';
+        canvasXY.classList.toggle('drawing', isDrawMode);
+        drawFirstPoint = null; drawPreview = null;
+        updateModeHint(); redraw();
+    }
+
+    function updateModeHint() {
+        const hint = document.getElementById('modeHint');
+        if (isDrawMode) {
+            hint.style.display = 'block'; hint.className = '';
+            hint.innerText = 'Клик — первая точка, второй клик — вторая. Shift = ортогональ, Esc/ПКМ = отмена.';
+        } else if (photoAdjustMode) {
+            hint.style.display = 'block'; hint.className = 'photo';
+            hint.innerText = 'ЛКМ — сдвиг. Колесо — масштаб. Ctrl+колесо — только ширина, Alt+колесо — только высота, Shift+колесо — поворот.';
+        } else {
+            hint.style.display = 'none';
+        }
+    }
+
+    function undoSketch() { if (sketchLines.length > 0) { sketchLines.pop(); redraw(); } }
+    function clearSketch() { sketchLines = []; drawFirstPoint = null; drawPreview = null; redraw(); }
+
+    canvasXY.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    canvasXY.addEventListener('mousedown', (e) => {
+        if (e.button === 2) {
+            if (isDrawMode && drawFirstPoint) { drawFirstPoint = null; drawPreview = null; redraw(); }
+            return;
+        }
+        if (e.button !== 0) return;
+
+        const rect = canvasXY.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        if (photoAdjustMode && activeLayer()) {
+            const L = activeLayer(), mp = getMachinePos(mx, my);
+            isDraggingPhoto = true;
+            photoDragStartX = mp.x - L.cx;
+            photoDragStartY = mp.y - L.cy;
+            return;
+        }
+
+        if (isDrawMode) {
+            const mp = getMachinePos(mx, my);
+            let snapped = { x: mp.x, y: mp.y };
+            if (e.shiftKey && drawFirstPoint) {
+                const dx = Math.abs(mp.x - drawFirstPoint.x);
+                const dy = Math.abs(mp.y - drawFirstPoint.y);
+                if (dx >= dy) snapped.y = drawFirstPoint.y; else snapped.x = drawFirstPoint.x;
+            }
+            if (!drawFirstPoint) { drawFirstPoint = snapped; drawPreview = snapped; }
+            else {
+                sketchLines.push({ x1: drawFirstPoint.x, y1: drawFirstPoint.y, x2: snapped.x, y2: snapped.y });
+                drawFirstPoint = null; drawPreview = null;
+            }
+            redraw(); return;
+        }
+
+        e.preventDefault();
+        isDragging = true;
+        dragStartX = e.clientX - offsetX;
+        dragStartY = e.clientY - offsetY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        const rect = canvasXY.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        if (isDraggingPhoto) {
+            const L = activeLayer();
+            if (L) { const mp = getMachinePos(mx, my); L.cx = mp.x - photoDragStartX; L.cy = mp.y - photoDragStartY; updatePhotoInputs(); }
+            redraw(); return;
+        }
+
+        if (isDrawMode && drawFirstPoint) {
+            const mp = getMachinePos(mx, my);
+            let snapped = { x: mp.x, y: mp.y };
+            if (e.shiftKey) {
+                const dx = Math.abs(mp.x - drawFirstPoint.x);
+                const dy = Math.abs(mp.y - drawFirstPoint.y);
+                if (dx >= dy) snapped.y = drawFirstPoint.y; else snapped.x = drawFirstPoint.x;
+            }
+            drawPreview = snapped;
+            redraw(); return;
+        }
+
+        if (isDragging) {
+            offsetX = e.clientX - dragStartX;
+            offsetY = e.clientY - dragStartY;
+            restorePhotoFromAnchor();
+            redraw();
+        }
+    });
+
+    window.addEventListener('mouseup', () => { isDraggingPhoto = false; isDragging = false; });
+
+    window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault();
+            if (e.shiftKey) redoEdit(); else undoEdit();
+            return;
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+            e.preventDefault();
+            redoEdit();
+            return;
+        }
+        if (e.key === 'Escape') {
+            if (coordPadOpen) { closeCoordPad(); return; }
+            if (isDrawMode && drawFirstPoint) { drawFirstPoint = null; drawPreview = null; redraw(); }
+            if (isMobileLayout()) closeSidebar();
+        }
+        if (coordPadOpen) {
+            if (e.key >= '0' && e.key <= '9') { e.preventDefault(); cpKeyPress(e.key); }
+            else if (e.key === '.') { e.preventDefault(); cpKeyPress('.'); }
+            else if (e.key === 'Backspace') { e.preventDefault(); cpKeyPress('del'); }
+            else if (e.key === 'Enter') { e.preventDefault(); cpKeyPress('ok'); }
+            else if (e.key === '-') { e.preventDefault(); cpKeyPress('sign'); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); cpKeyPress('up'); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); cpKeyPress('down'); }
+            else if (e.key === 'PageUp') { e.preventDefault(); cpKeyPress('prevrow'); }
+            else if (e.key === 'PageDown') { e.preventDefault(); cpKeyPress('nextrow'); }
+            else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                const order = ['x', 'y', 'r'].filter(k => cpKeyAllowed(recipe[cpIndex], k));
+                const i = order.indexOf(cpKey);
+                if (i >= 0) {
+                    const ni = e.key === 'ArrowLeft' ? (i - 1 + order.length) % order.length : (i + 1) % order.length;
+                    cpSelectKey(order[ni]);
+                }
+            }
+        }
+    });
+
+    // ===== Touch: pan + pinch-zoom (визуализация отдельно от интерфейса) =====
+    let touchMode = null; // 'pan' | 'pinch' | 'photo' | 'draw'
+    let lastTouchX = 0, lastTouchY = 0;
+    let pinchStartDist = 0, pinchStartZoom = 1;
+    let pinchMidX = 0, pinchMidY = 0;
+
+    function touchDist(t0, t1) {
+        const dx = t0.clientX - t1.clientX, dy = t0.clientY - t1.clientY;
+        return Math.hypot(dx, dy);
+    }
+    function touchMid(t0, t1, rect) {
+        return {
+            x: (t0.clientX + t1.clientX) / 2 - rect.left,
+            y: (t0.clientY + t1.clientY) / 2 - rect.top
+        };
+    }
+
+    canvasXY.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 0) return;
+        e.preventDefault();
+        const rect = canvasXY.getBoundingClientRect();
+
+        if (e.touches.length === 2) {
+            touchMode = 'pinch';
+            isDragging = false; isDraggingPhoto = false;
+            pinchStartDist = touchDist(e.touches[0], e.touches[1]);
+            pinchStartZoom = zoomFactor;
+            const mid = touchMid(e.touches[0], e.touches[1], rect);
+            pinchMidX = mid.x; pinchMidY = mid.y;
+            return;
+        }
+
+        const t = e.touches[0];
+        const mx = t.clientX - rect.left;
+        const my = t.clientY - rect.top;
+
+        if (photoAdjustMode && activeLayer()) {
+            const L = activeLayer(), mp = getMachinePos(mx, my);
+            touchMode = 'photo';
+            isDraggingPhoto = true;
+            photoDragStartX = mp.x - L.cx;
+            photoDragStartY = mp.y - L.cy;
+            return;
+        }
+
+        if (isDrawMode) {
+            touchMode = 'draw';
+            const mp = getMachinePos(mx, my);
+            let snapped = { x: mp.x, y: mp.y };
+            if (!drawFirstPoint) { drawFirstPoint = snapped; drawPreview = snapped; }
+            else {
+                sketchLines.push({ x1: drawFirstPoint.x, y1: drawFirstPoint.y, x2: snapped.x, y2: snapped.y });
+                drawFirstPoint = null; drawPreview = null;
+            }
+            redraw();
+            return;
+        }
+
+        touchMode = 'pan';
+        isDragging = true;
+        lastTouchX = t.clientX;
+        lastTouchY = t.clientY;
+        dragStartX = t.clientX - offsetX;
+        dragStartY = t.clientY - offsetY;
+    }, { passive: false });
+
+    canvasXY.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 0) return;
+        e.preventDefault();
+        const rect = canvasXY.getBoundingClientRect();
+
+        if (e.touches.length === 2 && (touchMode === 'pinch' || touchMode === 'pan')) {
+            touchMode = 'pinch';
+            const dist = touchDist(e.touches[0], e.touches[1]);
+            if (pinchStartDist > 0) {
+                const factor = dist / pinchStartDist;
+                if (photoAdjustMode && activeLayer()) {
+                    layerScaleBy(factor, factor);
+                    pinchStartDist = dist;
+                    return;
+                }
+                const newZoom = Math.max(0.05, Math.min(200, pinchStartZoom * factor));
+                const oldScale = baseScale * zoomFactor;
+                zoomFactor = newZoom;
+                const newScale = baseScale * zoomFactor;
+                const mid = touchMid(e.touches[0], e.touches[1], rect);
+                offsetX = mid.x - (mid.x - offsetX) * (newScale / oldScale);
+                offsetY = mid.y - (mid.y - offsetY) * (newScale / oldScale);
+                offsetX += (mid.x - pinchMidX);
+                offsetY += (mid.y - pinchMidY);
+                pinchMidX = mid.x; pinchMidY = mid.y;
+                pinchStartDist = dist;
+                pinchStartZoom = zoomFactor;
+                updateZoomText();
+                restorePhotoFromAnchor();
+                redraw();
+            }
+            return;
+        }
+
+        const t = e.touches[0];
+        const mx = t.clientX - rect.left;
+        const my = t.clientY - rect.top;
+
+        if (touchMode === 'photo' && isDraggingPhoto) {
+            const L = activeLayer();
+            if (L) {
+                const mp = getMachinePos(mx, my);
+                L.cx = mp.x - photoDragStartX;
+                L.cy = mp.y - photoDragStartY;
+                updatePhotoInputs();
+            }
+            redraw();
+            return;
+        }
+
+        if (touchMode === 'draw' && drawFirstPoint) {
+            const mp = getMachinePos(mx, my);
+            drawPreview = { x: mp.x, y: mp.y };
+            redraw();
+            return;
+        }
+
+        if (touchMode === 'pan' && isDragging) {
+            offsetX = t.clientX - dragStartX;
+            offsetY = t.clientY - dragStartY;
+            restorePhotoFromAnchor();
+            redraw();
+        }
+    }, { passive: false });
+
+    canvasXY.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+            touchMode = e.touches.length === 1 ? touchMode : null;
+        }
+        if (e.touches.length === 0) {
+            isDragging = false;
+            isDraggingPhoto = false;
+            touchMode = null;
+        }
+    }, { passive: false });
+
+    canvasXY.addEventListener('touchcancel', () => {
+        isDragging = false;
+        isDraggingPhoto = false;
+        touchMode = null;
+    }, { passive: false });
+
+    // Блокируем жесты масштабирования страницы на iOS/Android, оставляя только зум визуализации
+    document.addEventListener('gesturestart', (e) => e.preventDefault());
+    document.addEventListener('gesturechange', (e) => e.preventDefault());
+
+    // Ползунок 0..100: середина (50) = 0.05x; логарифмическая шкала 0.01 … 0.05 … 3
+    function speedFromSlider(t) {
+        t = Math.max(0, Math.min(100, parseFloat(t) || 0)) / 100;
+        const logMin = Math.log(0.01), logMid = Math.log(0.05), logMax = Math.log(3);
+        if (t <= 0.5) {
+            const u = t / 0.5;
+            return Math.exp(logMin + (logMid - logMin) * u);
+        }
+        const u = (t - 0.5) / 0.5;
+        return Math.exp(logMid + (logMax - logMid) * u);
+    }
+    function formatSpeed(v) {
+        if (v < 0.1) return v.toFixed(2) + 'x';
+        if (v < 1) return v.toFixed(2) + 'x';
+        return (Math.round(v * 100) / 100) + 'x';
+    }
+    function updateSpeedFromSlider(val) {
+        speedMult = speedFromSlider(val);
+        document.getElementById('speedVal').innerText = formatSpeed(speedMult);
+    }
+    function updateSpeed(val) { // совместимость
+        speedMult = parseFloat(val) || 0.05;
+        document.getElementById('speedVal').innerText = formatSpeed(speedMult);
+    }
+
+    function rotateView(deg) {
+        viewRot = (viewRot + deg) % 360;
+        if (viewRot < 0) viewRot += 360;
+        redraw();
+    }
+
+    function toggleMirror(axis) {
+        if (axis === 'x') mirrorX *= -1;
+        if (axis === 'y') mirrorY *= -1;
+        redraw();
+    }
+
+    // Инструменты и каретки: T0-T6 на осях 3/4 (верх), T21-T25 на осях 1/2 (низ) — одна плоскость.
+    const TOOL_DEFS = [
+        { id: 'T0',  car: 'U', fw: 'Testere Alt',        color: '#4fc3f7' },
+        { id: 'T1',  car: 'U', fw: 'Testere Ust',        color: '#ff7043' },
+        { id: 'T2',  car: 'U', fw: 'Ust Freze',          color: '#66bb6a' },
+        { id: 'T3',  car: 'U', fw: 'Kalin Tras',         color: '#ab47bc' },
+        { id: 'T4',  car: 'U', fw: 'Ust Caki Alt',       color: '#ffca28' },
+        { id: 'T5',  car: 'U', fw: 'Ust Caki Ust',       color: '#26c6da' },
+        { id: 'T6',  car: 'U', fw: 'Ince Tras',          color: '#ec407a' },
+        { id: 'T21', car: 'L', fw: 'Alt Freze',          color: '#d4e157' },
+        { id: 'T22', car: 'L', fw: 'Alt Caki Alt',       color: '#ff8a65' },
+        { id: 'T23', car: 'L', fw: 'Alt Caki Ust',       color: '#7986cb' },
+        { id: 'T24', car: 'L', fw: 'Alt Ince Tras',      color: '#4db6ac' },
+        { id: 'T25', car: 'L', fw: 'Alt Kalin Tras',     color: '#f48fb1' }
+    ];
+    const toolColors = {}, toolOffsets = {};
+    TOOL_DEFS.forEach(t => { toolColors[t.id] = t.color; toolOffsets[t.id] = { x: 0, y: 0 }; });
+    let selectedTools = new Set(['T0', 'T1']);
+    function carOf(tool) { return /^T2\d$/.test(tool) && tool !== 'T2' ? 'L' : 'U'; }
+    function isToolOn(tool) { return selectedTools.has(tool); }
+
+    function generateSegments(rec) {
+        let segs = [];
+        const pos = { U: { x: 0, y: 0 }, L: { x: 0, y: 0 } };   // позиция каретки в координатах осей
+        rec.forEach((step) => {
+            const p = pos[carOf(step.tool)];
+            const o = effTkm(step.tool), e = edgeShift(step.tool);
+            let sx = p.x, sy = p.y, ex = sx, ey = sy;
+            if (step.cmd === 'C04') { ex = step.x - o.x; ey = step.y - o.y; }
+            else if (step.cmd === 'C02') { ex = step.x - o.x; }
+            else if (step.cmd === 'C03') { ey = step.y - o.y; }
+            else if (step.cmd === 'C05' || step.cmd === 'C06' || step.cmd === 'C07') {
+                ex = sx + step.x; ey = sy + step.y;
+            }
+            let actualR = Math.abs(step.r);
+            let isCW = step.isCW;
+            if (step.r < 0) isCW = !isCW;
+            segs.push({ startX: sx + e.x, startY: sy + e.y, endX: ex + e.x, endY: ey + e.y, step: step, actualR: actualR, isCW: isCW });
+            p.x = ex; p.y = ey;
+        });
+        return segs;
+    }
+
+    function nextVis(i) { for (let k = Math.max(i, 0); k < currentSegments.length; k++) if (isToolOn(currentSegments[k].step.tool)) return k; return -1; }
+    function prevVis(i) { for (let k = Math.min(i, currentSegments.length - 1); k >= 0; k--) if (isToolOn(currentSegments[k].step.tool)) return k; return -1; }
+
+    // ===== ДИСК T0/T1: прямоугольник с рабочей кромкой =====
+    // Каретка M: правая (+) кромка диска лежит в точке M, тело диска — [M−t, M] по оси толщины.
+    // Траектория рисуется по рабочей кромке: у «правой» кромки это M, у «левой» — M−t.
+    const disc = { t: 2.2, len: 30, axis: 'y', anchor: 'minus', edge: { T0: 'left', T1: 'right' }, show: true, carve: true };
+    function isDisc(tool) { return tool === 'T0' || tool === 'T1'; }
+    function edgeShift(tool) {          // отображаемая позиция = M + edgeShift
+        if (!isDisc(tool) || disc.edge[tool] !== 'left') return { x: 0, y: 0 };
+        return disc.axis === 'x' ? { x: -disc.t, y: 0 } : { x: 0, y: -disc.t };
+    }
+    function effTkm(tool) {             // как в прошивке: T0 смещён относительно T1 на толщину диска
+        const b = toolOffsets[tool] || { x: 0, y: 0 };
+        if (tool !== 'T0') return b;
+        const e0 = edgeShift('T0'), e1 = edgeShift('T1');
+        return { x: b.x + e0.x - e1.x, y: b.y + e0.y - e1.y };
+    }
+    function discRect(mx, my) {         // углы прямоугольника диска в координатах станка
+        const t = disc.t, L = disc.len;
+        const lo = disc.anchor === 'center' ? -L / 2 : (disc.anchor === 'plus' ? 0 : -L);
+        const hi = lo + L;
+        return disc.axis === 'x'
+            ? [{x: mx - t, y: my + lo}, {x: mx, y: my + lo}, {x: mx, y: my + hi}, {x: mx - t, y: my + hi}]
+            : [{x: mx + lo, y: my - t}, {x: mx + hi, y: my - t}, {x: mx + hi, y: my}, {x: mx + lo, y: my}];
+    }
+    function convexHull(pts) {
+        pts = pts.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+        const cr = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+        const lo = [], up = [];
+        for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length-2], lo[lo.length-1], p) <= 0) lo.pop(); lo.push(p); }
+        for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length-2], up[up.length-1], p) <= 0) up.pop(); up.push(p); }
+        up.pop(); lo.pop(); return lo.concat(up);
+    }
+    function segSamples(seg) {          // точки отображаемой траектории сегмента (дуги — по хордам)
+        if (seg.step.cmd === 'C06' || seg.step.cmd === 'C07') {
+            let x1 = seg.startX, y1 = seg.startY, x2 = seg.endX, y2 = seg.endY;
+            let r = seg.actualR, q = Math.hypot(x2 - x1, y2 - y1);
+            if (r >= q / 2 && q > 0) {
+                let x3 = (x1 + x2) / 2, y3 = (y1 + y2) / 2, h = Math.sqrt(r * r - q * q / 4), cx, cy;
+                if (seg.isCW) { cx = x3 - h * (y1 - y2) / q; cy = y3 - h * (x2 - x1) / q; }
+                else { cx = x3 + h * (y1 - y2) / q; cy = y3 + h * (x2 - x1) / q; }
+                let a1 = Math.atan2(y1 - cy, x1 - cx), a2 = Math.atan2(y2 - cy, x2 - cx);
+                if (seg.isCW) { if (a2 > a1) a2 -= Math.PI * 2; } else { if (a2 < a1) a2 += Math.PI * 2; }
+                const pts = [];
+                for (let i = 0; i <= 24; i++) { const a = a1 + (a2 - a1) * i / 24; pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }); }
+                return pts;
+            }
+        }
+        return [{ x: seg.startX, y: seg.startY }, { x: seg.endX, y: seg.endY }];
+    }
+    function carveChords() {            // пары точек каретки M, по которым диск «прошёл»
+        const ch = [];
+        const toM = (p, tool) => { const e = edgeShift(tool); return { x: p.x - e.x, y: p.y - e.y }; };
+        if (trailXY.length > 0) {
+            for (let i = 0; i < trailXY.length - 1; i++) {
+                const a = trailXY[i], b = trailXY[i + 1];
+                if (b.brk || a.tool !== b.tool || !isDisc(b.tool) || !isToolOn(b.tool)) continue;
+                ch.push([toM(a, b.tool), toM(b, b.tool)]);
+            }
+        } else {
+            currentSegments.forEach(seg => {
+                if (!isDisc(seg.step.tool) || !isToolOn(seg.step.tool)) return;
+                const pts = segSamples(seg);
+                for (let i = 0; i < pts.length - 1; i++) ch.push([toM(pts[i], seg.step.tool), toM(pts[i + 1], seg.step.tool)]);
+            });
+        }
+        return ch;
+    }
+    const bodyCanvas = document.createElement('canvas');
+    function polyPath(ctx, poly) {
+        poly.forEach((p, i) => { const sp = getScreenPos(p.x, p.y); if (i) ctx.lineTo(sp.x, sp.y); else ctx.moveTo(sp.x, sp.y); });
+        ctx.closePath();
+    }
+    function drawBody(ctx) {            // шаблон заготовки (профиль) и область, вырезанная диском
+        if (!showTemplate()) return;
+        if (bodyCanvas.width !== canvasXY.width || bodyCanvas.height !== canvasXY.height) { bodyCanvas.width = canvasXY.width; bodyCanvas.height = canvasXY.height; }
+        const bc = bodyCanvas.getContext('2d');
+        bc.setTransform(1, 0, 0, 1, 0, 0);
+        bc.clearRect(0, 0, bodyCanvas.width, bodyCanvas.height);
+        bc.globalCompositeOperation = 'source-over';
+        bc.fillStyle = '#b79660';
+        bc.beginPath();
+        tplMachinePolys().forEach(p => polyPath(bc, p));
+        bc.fill('evenodd');
+        if (disc.carve) {
+            bc.globalCompositeOperation = 'destination-out';
+            bc.fillStyle = '#000'; bc.strokeStyle = '#000'; bc.lineWidth = 0.5;
+            carveChords().forEach(([a, b]) => {
+                const hull = convexHull(discRect(a.x, a.y).concat(discRect(b.x, b.y)));
+                bc.beginPath(); polyPath(bc, hull); bc.fill(); bc.stroke();
+            });
+            bc.globalCompositeOperation = 'source-over';
+        }
+        ctx.save(); ctx.globalAlpha = Math.max(photoOpacity, 0.2); ctx.drawImage(bodyCanvas, 0, 0); ctx.restore();
+    }
+    function setToolTip(t, x, y) {
+        if (isDisc(t)) {
+            delete toolTips['T0'];
+            delete toolTips['T1'];
+        }
+        toolTips[t] = { x, y };
+    }
+    function drawDiscs(ctx) {
+        if (!disc.show) return;
+        const t = toolTips['T1'] ? 'T1' : (toolTips['T0'] ? 'T0' : null);
+        if (!t || (!isToolOn('T0') && !isToolOn('T1'))) return;
+        const e = edgeShift(t), mx = toolTips[t].x - e.x, my = toolTips[t].y - e.y;
+        const rect = discRect(mx, my);
+        ctx.save();
+        ctx.beginPath(); polyPath(ctx, rect);
+        ctx.globalAlpha = isDisc(curTool) ? 0.28 : 0.15;
+        ctx.fillStyle = toolColors[t]; ctx.fill();
+        ctx.globalAlpha = 0.85; ctx.strokeStyle = toolColors[t]; ctx.lineWidth = 1; ctx.stroke();
+        // Подсветка рабочей кромки активного угла (T0 — нижн. прав., T1 — верхн. прав.)
+        const k = disc.edge[t] === 'left' ? 0 : 1;
+        const c = disc.axis === 'x' ? (k ? [rect[1], rect[2]] : [rect[0], rect[3]]) : (k ? [rect[2], rect[3]] : [rect[0], rect[1]]);
+        const p1 = getScreenPos(c[0].x, c[0].y), p2 = getScreenPos(c[1].x, c[1].y);
+        ctx.globalAlpha = 1; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        // Метка второго рабочего угла того же диска (если второй инструмент включён)
+        const other = (t === 'T0') ? 'T1' : 'T0';
+        if (isToolOn(other)) {
+            const eo = edgeShift(other);
+            const po = getScreenPos(mx + eo.x, my + eo.y);
+            ctx.beginPath(); ctx.arc(po.x, po.y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = toolColors[other]; ctx.fill();
+        }
+        ctx.restore();
+    }
+    function discChanged(reset) {
+        const g = id => document.getElementById(id);
+        disc.t = Math.max(0, parseFloat(g('discT').value) || 0);
+        disc.len = Math.max(1, parseFloat(g('discLen').value) || 30);
+        disc.axis = g('discAxis').value; disc.anchor = g('discAnchor').value;
+        disc.edge.T0 = g('discE0').value; disc.edge.T1 = g('discE1').value;
+        disc.show = g('discShow').checked; disc.carve = g('discCarve').checked;
+        if (reset) { resetSim(); trailXY = []; toolTips = {}; recalcSegments(); } else redraw();
+    }
+    ['discT', 'discLen', 'discAxis', 'discE0', 'discE1'].forEach(id => document.getElementById(id).addEventListener('change', () => discChanged(true)));
+    ['discAnchor', 'discShow', 'discCarve'].forEach(id => document.getElementById(id).addEventListener('change', () => discChanged(false)));
+    document.getElementById('tplOn').addEventListener('change', (e) => {
+        tplOn = e.target.checked;
+        if (tplOn && !tplPlaced) {      // первый показ — ставим шаблон в центр текущего вида
+            const c = viewCenterMachine(); tplL.cx = c.x; tplL.cy = c.y; tplPlaced = true;
+        }
+        layersChanged();
+    });
+
+    let currentSegments = [];
+    let originalSegments = [];
+
+    function recalcSegments(keepView) {
+        currentSegments = generateSegments(recipe);
+        originalSegments = generateSegments(originalRecipe);
+        // keepView=true: только перерисовать, не сбрасывать масштаб/сдвиг пользователя
+        if (keepView) {
+            syncCanvasSize(true);
+        } else {
+            resizeCanvas();
+        }
+    }
+
+    function getContentBounds() {
+        let minX = 0, maxX = 100, minY = -50, maxY = 100;
+        let allSegs = currentSegments.concat(originalSegments).filter(sg => isToolOn(sg.step.tool));
+        allSegs.forEach(s => {
+            minX = Math.min(minX, s.startX, s.endX); maxX = Math.max(maxX, s.startX, s.endX);
+            minY = Math.min(minY, s.startY, s.endY); maxY = Math.max(maxY, s.startY, s.endY);
+        });
+        sketchLines.forEach(l => {
+            minX = Math.min(minX, l.x1, l.x2); maxX = Math.max(maxX, l.x1, l.x2);
+            minY = Math.min(minY, l.y1, l.y2); maxY = Math.max(maxY, l.y1, l.y2);
+        });
+        minX -= 20; maxX += 20; minY -= 20; maxY += 20;
+        return { minX, maxX, minY, maxY };
+    }
+
+    /** Обновить размер canvas. preserveView — сохранить текущий baseScale/offset/zoom */
+    function syncCanvasSize(preserveView) {
+        const rect = canvasXY.parentElement.getBoundingClientRect();
+        const w = Math.max(1, Math.floor(rect.width));
+        const h = Math.max(1, Math.floor(rect.height));
+        const same = (canvasXY.width === w && canvasXY.height === h);
+        if (same) {
+            if (!preserveView) applyAutoFit();
+            else { restorePhotoFromAnchor(); redraw(); }
+            return;
+        }
+        let mid = null;
+        if (preserveView && canvasXY.width > 0 && canvasXY.height > 0) {
+            mid = getMachinePos(canvasXY.width / 2, canvasXY.height / 2);
+        }
+        canvasXY.width = w;
+        canvasXY.height = h;
+        if (preserveView && mid) {
+            // baseScale и zoomFactor не трогаем — только центрируем прежнюю точку
+            const sp = getScreenPos(mid.x, mid.y);
+            offsetX += (w / 2) - sp.x;
+            offsetY += (h / 2) - sp.y;
+            restorePhotoFromAnchor();
+            redraw();
+        } else {
+            applyAutoFit();
+        }
+    }
+
+    function applyAutoFit() {
+        const b = getContentBounds();
+        baseScale = Math.min(canvasXY.width / (b.maxX - b.minX), canvasXY.height / (b.maxY - b.minY)) * 0.8;
+        if (!isFinite(baseScale) || baseScale <= 0) baseScale = 1;
+        offsetX = canvasXY.width / 2 - ((b.minX + b.maxX) / 2) * baseScale;
+        offsetY = canvasXY.height / 2 + ((b.minY + b.maxY) / 2) * baseScale;
+        // zoomFactor не трогаем — пользовательский зум поверх auto-fit
+        restorePhotoFromAnchor();
+        redraw();
+    }
+
+    function resizeCanvas() {
+        const rect = canvasXY.parentElement.getBoundingClientRect();
+        canvasXY.width = Math.max(1, Math.floor(rect.width));
+        canvasXY.height = Math.max(1, Math.floor(rect.height));
+        applyAutoFit();
+    }
+
+    window.addEventListener('resize', () => {
+        if (coordPadOpen) syncCanvasSize(true);
+        else resizeCanvas();
+    });
+
+    function zoomAt(factor, sx, sy) {
+        const oldScale = baseScale * zoomFactor;
+        zoomFactor = Math.max(0.05, Math.min(200, zoomFactor * factor));
+        const newScale = baseScale * zoomFactor;
+        offsetX = sx - (sx - offsetX) * (newScale / oldScale);
+        offsetY = sy - (sy - offsetY) * (newScale / oldScale);
+        updateZoomText();
+        restorePhotoFromAnchor();
+        redraw();
+    }
+
+    function zoomIn() { zoomAt(1.2, canvasXY.width / 2, canvasXY.height / 2); }
+    function zoomOut() { zoomAt(1 / 1.2, canvasXY.width / 2, canvasXY.height / 2); }
+    function updateZoomText() {
+        const pct = Math.round(zoomFactor * 100) + "%";
+        const el = document.getElementById('zoomLevelText');
+        if (el) el.innerText = pct;
+        const el2 = document.getElementById('vizZoomLabel');
+        if (el2) el2.innerText = pct;
+    }
+
+    function fitView() {
+        zoomFactor = 1.0;
+        resizeCanvas();
+        updateZoomText();
+    }
+
+    // При закрытии pad на ориентации — пересчитать высоту
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            if (coordPadOpen) {
+                const pad = document.getElementById('coordPad');
+                const h = pad.offsetHeight || 220;
+                document.documentElement.style.setProperty('--coord-pad-h', h + 'px');
+                const mw = document.getElementById('main-wrapper');
+                if (mw) mw.style.height = 'calc(100% - ' + h + 'px)';
+                syncCanvasSize(true);
+            } else {
+                resizeCanvas();
+            }
+        }, 200);
+    });
+
+    // ===== Sidebar (mobile) =====
+    function isMobileLayout() { return window.matchMedia('(max-width: 900px)').matches; }
+
+    // ===== Полноэкранный режим (мобильный) =====
+    function getFullscreenElement() {
+        return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement || null;
+    }
+    function isFullscreen() { return !!getFullscreenElement(); }
+    function requestFs(el) {
+        el = el || document.documentElement;
+        if (el.requestFullscreen) return el.requestFullscreen({ navigationUI: 'hide' }).catch(() => el.requestFullscreen());
+        if (el.webkitRequestFullscreen) return Promise.resolve(el.webkitRequestFullscreen());
+        if (el.msRequestFullscreen) return Promise.resolve(el.msRequestFullscreen());
+        return Promise.reject(new Error('Fullscreen API недоступен'));
+    }
+    function exitFs() {
+        if (document.exitFullscreen) return document.exitFullscreen();
+        if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+        if (document.msExitFullscreen) return document.msExitFullscreen();
+        return Promise.resolve();
+    }
+    function syncFullscreenUI() {
+        const on = isFullscreen();
+        document.body.classList.toggle('is-fullscreen', on);
+        const label = on ? '⛶' : '⛶';
+        const title = on ? 'Выйти из полного экрана' : 'Полный экран';
+        const b1 = document.getElementById('btnFullscreen');
+        const b2 = document.getElementById('btnFsZoom');
+        if (b1) { b1.title = title; b1.setAttribute('aria-label', title); b1.textContent = on ? '✕' : '⛶'; }
+        if (b2) { b2.title = title; b2.textContent = on ? '✕' : '⛶'; }
+        // после смены режима — подогнать canvas, сохранив вид
+        requestAnimationFrame(() => {
+            if (typeof coordPadOpen !== 'undefined' && coordPadOpen) syncCanvasSize(true);
+            else if (typeof syncCanvasSize === 'function') syncCanvasSize(true);
+            else if (typeof resizeCanvas === 'function') resizeCanvas();
+        });
+    }
+    async function toggleFullscreen() {
+        try {
+            if (isFullscreen()) await exitFs();
+            else await requestFs(document.documentElement);
+        } catch (err) {
+            // iOS Safari часто блокирует Fullscreen API — пробуем «псевдо» через scroll/standalone
+            if (isMobileLayout()) {
+                try {
+                    // скрыть адресную строку насколько возможно
+                    window.scrollTo(0, 1);
+                } catch (_) {}
+                alert('Браузер не разрешил системный полный экран.\nДобавьте страницу на домашний экран («На экран „Домой“») — тогда откроется почти как приложение.');
+            }
+        }
+        setTimeout(syncFullscreenUI, 50);
+    }
+    document.addEventListener('fullscreenchange', syncFullscreenUI);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenUI);
+    // Автозапрос полного экрана при первом касании на мобиле (нужен жест пользователя)
+    let fsAutoTried = false;
+    function tryAutoFullscreenOnce() {
+        if (fsAutoTried || !isMobileLayout() || isFullscreen()) return;
+        // только если открыто не как уже установленное PWA
+        if (window.matchMedia('(display-mode: standalone)').matches) return;
+        fsAutoTried = true;
+        requestFs(document.documentElement).then(syncFullscreenUI).catch(() => { /* молча */ });
+    }
+    // по первому осмысленному жесту
+    ['pointerdown', 'touchstart'].forEach(ev => {
+        window.addEventListener(ev, function onceFs() {
+            if (!isMobileLayout()) return;
+            // не перехватываем — только фоновая попытка после жеста
+            setTimeout(tryAutoFullscreenOnce, 0);
+        }, { passive: true, once: true });
+    });
+
+    // ===== Боковая панель: без затемнения, свободный свайп =====
+    // sidebarReveal: 0 = скрыта, 1 = полностью открыта, промежуточные — частично
+    let sidebarReveal = 0;
+    let sbDrag = null; // { startX, startReveal }
+
+    function sidebarWidth() {
+        const sb = document.getElementById('sidebar');
+        return sb ? (sb.offsetWidth || Math.min(window.innerWidth * 0.86, 360)) : 360;
+    }
+    function applySidebarReveal(r, animate) {
+        sidebarReveal = Math.max(0, Math.min(1, r));
+        const sb = document.getElementById('sidebar');
+        if (!sb) return;
+        const w = sidebarWidth();
+        // translateX от -w (закрыто) до 0 (открыто)
+        const tx = -w * (1 - sidebarReveal);
+        if (!animate) sb.classList.add('dragging');
+        else sb.classList.remove('dragging');
+        sb.style.transform = 'translateX(' + tx + 'px)';
+        const isOpen = sidebarReveal > 0.05;
+        sb.classList.toggle('open', isOpen);
+        const closeBtn = document.getElementById('btnCloseSidebar');
+        if (closeBtn) closeBtn.style.display = (isMobileLayout() && isOpen) ? 'block' : 'none';
+        // оверлей никогда не блокирует canvas
+        const ov = document.getElementById('sidebarOverlay');
+        if (ov) ov.classList.remove('open');
+    }
+    function toggleSidebar() {
+        if (!isMobileLayout()) return;
+        const target = sidebarReveal > 0.5 ? 0 : 1;
+        applySidebarReveal(target, true);
+    }
+    function closeSidebar() {
+        applySidebarReveal(0, true);
+    }
+    function openSidebar() {
+        if (!isMobileLayout()) return;
+        applySidebarReveal(1, true);
+    }
+
+    function sbPointerDown(e) {
+        if (!isMobileLayout()) return;
+        const sb = document.getElementById('sidebar');
+        if (!sb) return;
+        // начинаем drag только с ручки или с левой кромки панели
+        const t = e.target;
+        const handle = document.getElementById('sidebarDragHandle');
+        const fromHandle = handle && (t === handle || handle.contains(t));
+        // также разрешаем свайп с края экрана когда панель почти закрыта
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const fromEdge = clientX < 24 && sidebarReveal < 0.15;
+        if (!fromHandle && !fromEdge && t !== sb) {
+            // свайп по самой панели (не по инпутам)
+            if (t.closest('input,select,button,textarea,a,label,#table-container,.tool-panel,#discPanel')) return;
+        }
+        if (!fromHandle && !fromEdge && !t.closest('#sidebar')) return;
+        sbDrag = {
+            startX: clientX,
+            startReveal: sidebarReveal,
+            pointerId: e.pointerId
+        };
+        sb.classList.add('dragging');
+        if (e.pointerId != null && sb.setPointerCapture) {
+            try { sb.setPointerCapture(e.pointerId); } catch (_) {}
+        }
+        e.preventDefault();
+    }
+    function sbPointerMove(e) {
+        if (!sbDrag) return;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const dx = clientX - sbDrag.startX;
+        const w = sidebarWidth() || 1;
+        const next = sbDrag.startReveal + dx / w;
+        applySidebarReveal(next, false);
+        e.preventDefault();
+    }
+    function sbPointerUp(e) {
+        if (!sbDrag) return;
+        sbDrag = null;
+        const sb = document.getElementById('sidebar');
+        if (sb) sb.classList.remove('dragging');
+        // лёгкий snap к краям, если почти закрыта/открыта; иначе оставляем как есть
+        if (sidebarReveal < 0.08) applySidebarReveal(0, true);
+        else if (sidebarReveal > 0.92) applySidebarReveal(1, true);
+        else applySidebarReveal(sidebarReveal, true);
+    }
+
+    (function initSidebarDrag() {
+        const sb = document.getElementById('sidebar');
+        const handle = document.getElementById('sidebarDragHandle');
+        if (!sb) return;
+        // pointer events на ручке и панели
+        const targets = [handle, sb].filter(Boolean);
+        targets.forEach(el => {
+            el.addEventListener('pointerdown', sbPointerDown);
+        });
+        // край экрана для вытягивания закрытой панели
+        window.addEventListener('pointerdown', (e) => {
+            if (!isMobileLayout() || sbDrag) return;
+            if (e.clientX < 18 && sidebarReveal < 0.1) sbPointerDown(e);
+        });
+        window.addEventListener('pointermove', sbPointerMove);
+        window.addEventListener('pointerup', sbPointerUp);
+        window.addEventListener('pointercancel', sbPointerUp);
+        // touch fallback
+        if (handle) {
+            handle.addEventListener('touchstart', sbPointerDown, { passive: false });
+        }
+        window.addEventListener('touchmove', (e) => { if (sbDrag) sbPointerMove(e); }, { passive: false });
+        window.addEventListener('touchend', sbPointerUp);
+        window.addEventListener('touchcancel', sbPointerUp);
+    })();
+
+    window.addEventListener('resize', () => {
+        if (!isMobileLayout()) {
+            const sb = document.getElementById('sidebar');
+            if (sb) {
+                sb.style.transform = '';
+                sb.classList.remove('open', 'dragging');
+            }
+            sidebarReveal = 0;
+            const closeBtn = document.getElementById('btnCloseSidebar');
+            if (closeBtn) closeBtn.style.display = 'none';
+        } else {
+            applySidebarReveal(sidebarReveal, false);
+        }
+    });
+
+    canvasXY.parentElement.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (photoAdjustMode && activeLayer()) {
+            if (e.shiftKey) {
+                photoRotateFine(e.deltaY > 0 ? -1 : 1);
+            } else {
+                const f = e.deltaY > 0 ? 0.99 : 1.01;
+                if (e.ctrlKey) layerScaleBy(f, 1);          // Ctrl+колесо — только ширина
+                else if (e.altKey) layerScaleBy(1, f);      // Alt+колесо — только высота
+                else layerScaleBy(f, f);
+            }
+            return;
+        }
+        const rect = canvasXY.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const factor = e.deltaY < 0 ? 1.15 : (1 / 1.15);
+        zoomAt(factor, mx, my);
+    }, { passive: false });
+
+    function drawGrid(ctx) {
+        const w = canvasXY.width, h = canvasXY.height;
+        const pxPerMm = baseScale * zoomFactor;
+        if (!isFinite(pxPerMm) || pxPerMm <= 0) return;
+
+        // Границы видимой области в машинных координатах (мм)
+        const c1 = getMachinePos(0, 0);
+        const c2 = getMachinePos(w, 0);
+        const c3 = getMachinePos(0, h);
+        const c4 = getMachinePos(w, h);
+        const minX = Math.min(c1.x, c2.x, c3.x, c4.x);
+        const maxX = Math.max(c1.x, c2.x, c3.x, c4.x);
+        const minY = Math.min(c1.y, c2.y, c3.y, c4.y);
+        const maxY = Math.max(c1.y, c2.y, c3.y, c4.y);
+
+        function drawStep(step, color, lineWidth, skipMult) {
+            if (step * pxPerMm < 3.5) return;
+            if ((maxX - minX) / step > 2000 || (maxY - minY) / step > 2000) return;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.beginPath();
+
+            const startX = Math.floor(minX / step) * step;
+            for (let x = startX; x <= maxX; x += step) {
+                const xr = Math.round(x / step);
+                if (xr === 0 || (skipMult && xr % skipMult === 0)) continue;
+                const p1 = getScreenPos(x, minY);
+                const p2 = getScreenPos(x, maxY);
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+            }
+
+            const startY = Math.floor(minY / step) * step;
+            for (let y = startY; y <= maxY; y += step) {
+                const yr = Math.round(y / step);
+                if (yr === 0 || (skipMult && yr % skipMult === 0)) continue;
+                const p1 = getScreenPos(minX, y);
+                const p2 = getScreenPos(maxX, y);
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+            }
+            ctx.stroke();
+        }
+
+        ctx.save();
+        // 1 мм — тонкие линии (плавно проявляются при приближении)
+        if (pxPerMm >= 3.5) {
+            const a1 = Math.min(0.08, ((pxPerMm - 3.5) / 10) * 0.08);
+            drawStep(1, `rgba(255, 255, 255, ${a1.toFixed(3)})`, 0.5, 5);
+        }
+        // 5 мм — полусантиметровые линии
+        if (pxPerMm * 5 >= 3.5) {
+            const a5 = Math.min(0.13, ((pxPerMm * 5 - 3.5) / 15) * 0.13);
+            drawStep(5, `rgba(255, 255, 255, ${a5.toFixed(3)})`, 0.75, 2);
+        }
+        // 10 мм — сантиметровые линии (при сильном отдалении — 50 мм)
+        if (pxPerMm * 10 >= 3.5) {
+            const a10 = Math.min(0.22, ((pxPerMm * 10 - 3.5) / 20) * 0.22);
+            drawStep(10, `rgba(255, 255, 255, ${a10.toFixed(3)})`, 1, 0);
+        } else {
+            drawStep(50, 'rgba(255, 255, 255, 0.20)', 1, 0);
+        }
+
+        // Главные оси X=0 и Y=0
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        let p1 = getScreenPos(minX, 0), p2 = getScreenPos(maxX, 0);
+        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        p1 = getScreenPos(0, minY); p2 = getScreenPos(0, maxY);
+        ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawPhoto(ctx) {
+        if (!usingPhoto()) return;
+        const L = photoL;
+        ctx.save();
+        ctx.globalAlpha = photoOpacity;
+        applyLayerTransform(ctx, L);
+        ctx.scale(L.mx * L.w / photoImage.width, -L.my * L.h / photoImage.height);
+        ctx.drawImage(photoImage, -photoImage.width / 2, -photoImage.height / 2);
+        ctx.restore();
+    }
+
+    function drawLayerFrame(ctx) {      // рамка слоя в режиме подгонки — удобно растягивать по краям
+        const L = photoAdjustMode ? activeLayer() : null;
+        if (!L) return;
+        ctx.save();
+        ctx.strokeStyle = '#6cb6ff'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+        ctx.beginPath(); polyPath(ctx, layerCorners(L)); ctx.stroke();
+        ctx.restore();
+    }
+
+    function redraw() {
+        const w = canvasXY.width, h = canvasXY.height;
+        ctxXY.clearRect(0, 0, w, h);
+        drawPhoto(ctxXY);
+        drawBody(ctxXY);
+        drawLayerFrame(ctxXY);
+        drawGrid(ctxXY);
+
+        if (isDifferent()) {
+            ctxXY.setLineDash([5, 5]);
+            ctxXY.lineWidth = 1.5;
+            drawPath(ctxXY, originalSegments, true);
+            ctxXY.setLineDash([]);
+        }
+
+        if (trailXY.length > 0) drawTrail(ctxXY, trailXY);
+        else { ctxXY.lineWidth = 2.5; drawPath(ctxXY, currentSegments, false); }
+
+        drawSketch(ctxXY);
+        drawTool(ctxXY);
+    }
+
+    function isDifferent() {
+        if (recipe.length !== originalRecipe.length) return true;
+        for (let i = 0; i < recipe.length; i++) {
+            let r = recipe[i], o = originalRecipe[i];
+            if (r.x !== o.x || r.y !== o.y || r.r !== o.r || r.isCW !== o.isCW || r.cmd !== o.cmd) return true;
+        }
+        return false;
+    }
+
+    function drawSketch(ctx) {
+        if (sketchLines.length === 0 && !drawFirstPoint) return;
+        ctx.save();
+        ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+        ctx.strokeStyle = '#e8c547';
+        sketchLines.forEach(l => {
+            const p1 = getScreenPos(l.x1, l.y1);
+            const p2 = getScreenPos(l.x2, l.y2);
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        });
+        ctx.fillStyle = '#e8c547';
+        sketchLines.forEach(l => {
+            [{x:l.x1,y:l.y1},{x:l.x2,y:l.y2}].forEach(pt => {
+                const p = getScreenPos(pt.x, pt.y);
+                ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2); ctx.fill();
+            });
+        });
+        if (drawFirstPoint) {
+            const p1 = getScreenPos(drawFirstPoint.x, drawFirstPoint.y);
+            ctx.fillStyle = '#e8c547';
+            ctx.beginPath(); ctx.arc(p1.x, p1.y, 4, 0, Math.PI*2); ctx.fill();
+            if (drawPreview) {
+                const p2 = getScreenPos(drawPreview.x, drawPreview.y);
+                ctx.setLineDash([5, 4]);
+                ctx.strokeStyle = '#e8c547'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+        ctx.restore();
+    }
+
+    function segColor(seg, isOriginal) { return isOriginal ? '#555' : (toolColors[seg.step.tool] || '#d4d4d4'); }
+
+    function drawPath(ctx, segs, isOriginal) {
+        let lastDiscEnd = null;
+        segs.forEach(seg => {
+            if (!isToolOn(seg.step.tool)) return;
+            ctx.globalAlpha = 1;
+            if (isDisc(seg.step.tool)) {
+                if (lastDiscEnd && Math.hypot(lastDiscEnd.x - seg.startX, lastDiscEnd.y - seg.startY) > 1e-6) {
+                    let c1 = getScreenPos(lastDiscEnd.x, lastDiscEnd.y);
+                    let c2 = getScreenPos(seg.startX, seg.startY);
+                    ctx.beginPath(); ctx.moveTo(c1.x, c1.y); ctx.lineTo(c2.x, c2.y);
+                    ctx.strokeStyle = segColor(seg, isOriginal);
+                    ctx.stroke();
+                }
+                lastDiscEnd = { x: seg.endX, y: seg.endY };
+            }
+            if (seg.step.cmd === 'C06' || seg.step.cmd === 'C07') {
+                let x1 = seg.startX, y1 = seg.startY, x2 = seg.endX, y2 = seg.endY;
+                let r = seg.actualR, q = Math.hypot(x2 - x1, y2 - y1);
+                if (r >= q / 2 && q > 0) {
+                    let x3 = (x1 + x2) / 2, y3 = (y1 + y2) / 2;
+                    let h = Math.sqrt(r * r - (q * q) / 4);
+                    let cx, cy;
+                    if (seg.isCW) { cx = x3 - h * (y1 - y2) / q; cy = y3 - h * (x2 - x1) / q; }
+                    else { cx = x3 + h * (y1 - y2) / q; cy = y3 + h * (x2 - x1) / q; }
+                    let a1 = Math.atan2(y1 - cy, x1 - cx);
+                    let a2 = Math.atan2(y2 - cy, x2 - cx);
+                    if (seg.isCW) { if (a2 > a1) a2 -= Math.PI * 2; }
+                    else { if (a2 < a1) a2 += Math.PI * 2; }
+                    let steps = 30;
+                    let prevP = getScreenPos(x1, y1);
+                    ctx.beginPath();
+                    for(let i=1; i<=steps; i++){
+                        let ang = a1 + (a2 - a1) * (i/steps);
+                        let px = cx + r * Math.cos(ang);
+                        let py = cy + r * Math.sin(ang);
+                        let p = getScreenPos(px, py);
+                        ctx.moveTo(prevP.x, prevP.y); ctx.lineTo(p.x, p.y);
+                        prevP = p;
+                    }
+                    ctx.strokeStyle = segColor(seg, isOriginal);
+                    ctx.stroke();
+                } else drawLine(ctx, seg, isOriginal);
+            } else drawLine(ctx, seg, isOriginal);
+            ctx.globalAlpha = 1;
+        });
+    }
+
+    function drawLine(ctx, seg, isOriginal) {
+        let p1 = getScreenPos(seg.startX, seg.startY);
+        let p2 = getScreenPos(seg.endX, seg.endY);
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = segColor(seg, isOriginal);
+        ctx.stroke();
+    }
+
+    function drawTrail(ctx, trail) {
+        if (trail.length < 2) return;
+        ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        for (let i = 0; i < trail.length - 1; i++) {
+            let p1 = trail[i], p2 = trail[i+1];
+            if (p2.brk || !isToolOn(p2.tool)) continue;
+            if (p1.tool !== p2.tool && !(isDisc(p1.tool) && isDisc(p2.tool))) continue;
+            ctx.beginPath();
+            ctx.strokeStyle = toolColors[p2.tool] || '#e8e8e8';
+            ctx.globalAlpha = (p2.isCut || isDisc(p2.tool)) ? 1 : 0.6;
+            let pos1 = getScreenPos(p1.x, p1.y);
+            let pos2 = getScreenPos(p2.x, p2.y);
+            ctx.moveTo(pos1.x, pos1.y); ctx.lineTo(pos2.x, pos2.y);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    let toolTips = {};
+    function drawTool(ctx) {
+        drawDiscs(ctx);
+        Object.keys(toolTips).forEach(t => {
+            if (!isToolOn(t) || t === curTool) return;
+            let tp = getScreenPos(toolTips[t].x, toolTips[t].y);
+            ctx.beginPath(); ctx.arc(tp.x, tp.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = toolColors[t]; ctx.fill();
+            ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.stroke();
+            ctx.fillStyle = toolColors[t]; ctx.font = '10px Segoe UI, sans-serif';
+            ctx.fillText(t, tp.x + 7, tp.y - 6);
+        });
+        let pos = getScreenPos(curX, curY);
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = toolColors[curTool] || '#e8c547'; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = '10px Segoe UI, sans-serif';
+        ctx.fillText(curTool, pos.x + 8, pos.y - 7);
+
+        if (activeArcCenter) {
+            let cPos = getScreenPos(activeArcCenter.cx, activeArcCenter.cy);
+            let p1 = getScreenPos(activeArcCenter.x1, activeArcCenter.y1);
+            let p2 = getScreenPos(activeArcCenter.x2, activeArcCenter.y2);
+            ctx.beginPath(); ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
+            ctx.moveTo(cPos.x - 6, cPos.y); ctx.lineTo(cPos.x + 6, cPos.y);
+            ctx.moveTo(cPos.x, cPos.y - 6); ctx.lineTo(cPos.x, cPos.y + 6); ctx.stroke();
+            ctx.beginPath(); ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
+            ctx.setLineDash([4, 4]);
+            ctx.moveTo(cPos.x, cPos.y); ctx.lineTo(p1.x, p1.y);
+            ctx.moveTo(cPos.x, cPos.y); ctx.lineTo(p2.x, p2.y);
+            ctx.stroke(); ctx.setLineDash([]);
+        }
+    }
+
+    function animateRow(index, keepTrail) {
+        let seg = currentSegments[index];
+        if (!seg) return;
+        if (!keepTrail) { trailXY = []; toolTips = {}; }
+        curX = seg.startX; curY = seg.startY;
+        beginRowTrail(seg);
+        currentIdx = index; progress = 0; activeArcCenter = null;
+        if (seg.step.cmd === 'C06' || seg.step.cmd === 'C07') {
+            let x1 = seg.startX, y1 = seg.startY, x2 = seg.endX, y2 = seg.endY;
+            let r = seg.actualR, q = Math.hypot(x2 - x1, y2 - y1);
+            if (r >= q / 2 && q > 0) {
+                let x3 = (x1 + x2) / 2, y3 = (y1 + y2) / 2;
+                let h = Math.sqrt(r * r - (q * q) / 4);
+                let cx, cy;
+                if (seg.isCW) { cx = x3 - h * (y1 - y2) / q; cy = y3 - h * (x2 - x1) / q; }
+                else { cx = x3 + h * (y1 - y2) / q; cy = y3 + h * (x2 - x1) / q; }
+                activeArcCenter = { cx, cy, x1, y1, x2, y2 };
+            }
+        }
+        isPlaying = true; isManualStep = true;
+        document.getElementById('btnPlay').disabled = true;
+        document.getElementById('curMode').innerText = "Ручной шаг: " + (index + 1);
+        lastTime = performance.now();
+        animFrame = requestAnimationFrame(simLoop);
+    }
+
+    function beginRowTrail(seg) {
+        const t = seg.step.tool;
+        curTool = t;
+        const last = trailXY[trailXY.length - 1];
+        if (last && isDisc(last.tool) && isDisc(t)) {
+            if (Math.hypot(last.x - seg.startX, last.y - seg.startY) > 1e-6 || last.tool !== t)
+                trailXY.push({ x: seg.startX, y: seg.startY, isCut: true, tool: t, brk: false });
+        } else if (!last || last.tool !== t || Math.hypot(last.x - seg.startX, last.y - seg.startY) > 1e-6) {
+            trailXY.push({ x: seg.startX, y: seg.startY, isCut: false, tool: t, brk: true });
+        }
+        setToolTip(t, seg.startX, seg.startY);
+    }
+
+    let lastTime = 0;
+    function simLoop(time) {
+        if (!isPlaying) return;
+        let dt = (time - lastTime) / 1000; lastTime = time;
+        if (dt > 0.1) dt = 0.1;
+        let baseSpeed = isManualStep ? 30 : (100 * speedMult);
+        let stepDist = baseSpeed * dt;
+        let seg = currentSegments[currentIdx];
+        curTool = seg.step.tool;
+        let isCutting = true;
+        let startX = seg.startX, startY = seg.startY, targetX = seg.endX, targetY = seg.endY;
+        let dist = Math.hypot(targetX - startX, targetY - startY);
+        if (dist === 0) dist = 0.1;
+        progress += stepDist / dist;
+        if (progress >= 1) {
+            curX = targetX; curY = targetY;
+            if (trailXY.length === 0 || trailXY[trailXY.length-1].x !== curX || trailXY[trailXY.length-1].y !== curY) {
+                trailXY.push({x: curX, y: curY, isCut: isCutting, tool: seg.step.tool});
+            }
+            setToolTip(seg.step.tool, curX, curY);
+            updateUI(); redraw();
+            if (isManualStep) {
+                isPlaying = false; isManualStep = false;
+                document.getElementById('btnPlay').disabled = false;
+                document.getElementById('curMode').innerText = "Шаг завершен";
+                return;
+            } else {
+                progress = 0;
+                let nxt = nextVis(currentIdx + 1);
+                if (nxt < 0) {
+                    currentIdx = currentSegments.length;
+                    pauseSim(); document.getElementById('curMode').innerText = "ЗАВЕРШЕНО";
+                    return;
+                }
+                currentIdx = nxt;
+                beginRowTrail(currentSegments[currentIdx]);
+                curX = currentSegments[currentIdx].startX; curY = currentSegments[currentIdx].startY;
+                return void (isPlaying && (animFrame = requestAnimationFrame(simLoop)));
+            }
+        } else {
+            if (seg.step.cmd === 'C06' || seg.step.cmd === 'C07') {
+                let x1 = startX, y1 = startY, x2 = targetX, y2 = targetY;
+                let r = seg.actualR, q = Math.hypot(x2 - x1, y2 - y1);
+                if (r >= q / 2 && q > 0) {
+                    let x3 = (x1 + x2) / 2, y3 = (y1 + y2) / 2;
+                    let h = Math.sqrt(r * r - (q * q) / 4);
+                    let cx, cy;
+                    if (seg.isCW) { cx = x3 - h * (y1 - y2) / q; cy = y3 - h * (x2 - x1) / q; }
+                    else { cx = x3 + h * (y1 - y2) / q; cy = y3 + h * (x2 - x1) / q; }
+                    let a1 = Math.atan2(y1 - cy, x1 - cx);
+                    let a2 = Math.atan2(y2 - cy, x2 - cx);
+                    if (seg.isCW) { if (a2 > a1) a2 -= Math.PI * 2; }
+                    else { if (a2 < a1) a2 += Math.PI * 2; }
+                    let curAngle = a1 + (a2 - a1) * progress;
+                    curX = cx + r * Math.cos(curAngle);
+                    curY = cy + r * Math.sin(curAngle);
+                } else { curX = x1 + (x2 - x1) * progress; curY = y1 + (y2 - y1) * progress; }
+            } else { curX = startX + (targetX - startX) * progress; curY = startY + (targetY - startY) * progress; }
+        }
+        if (trailXY.length === 0 || Math.hypot(trailXY[trailXY.length-1].x - curX, trailXY[trailXY.length-1].y - curY) > 0.1) {
+            trailXY.push({ x: curX, y: curY, isCut: isCutting, tool: seg.step.tool });
+        }
+        setToolTip(seg.step.tool, curX, curY);
+        updateUI(); redraw();
+        if (isPlaying) animFrame = requestAnimationFrame(simLoop);
+    }
+
+    function updateUI() {
+        document.getElementById('curX').innerText = curX.toFixed(2);
+        document.getElementById('curY').innerText = curY.toFixed(2);
+        document.getElementById('curTool').innerText = curTool;
+    }
+
+    function playSim() {
+        if (isPlaying) return;
+        if (isDrawMode) toggleDrawMode();
+        if (photoAdjustMode) { photoAdjustMode = false; updatePhotoAdjustBtn(); updateModeHint(); }
+        if (currentIdx >= 0 && nextVis(currentIdx + 1) < 0 && progress === 0) resetSim();
+        if (currentIdx < 0) {
+            let first = nextVis(0);
+            if (first < 0) { document.getElementById('curMode').innerText = "Нет выбранных инструментов"; return; }
+            currentIdx = first; curX = currentSegments[first].startX; curY = currentSegments[first].startY;
+            beginRowTrail(currentSegments[first]);
+        }
+        isPlaying = true; isManualStep = false;
+        document.getElementById('btnPlay').disabled = true;
+        document.getElementById('curMode').innerText = "Авто-движение";
+        lastTime = performance.now();
+        animFrame = requestAnimationFrame(simLoop);
+    }
+
+    function pauseSim() {
+        isPlaying = false; isManualStep = false;
+        cancelAnimationFrame(animFrame);
+        document.getElementById('btnPlay').disabled = false;
+        document.getElementById('curMode').innerText = "Пауза";
+    }
+
+    function resetSim() {
+        pauseSim(); currentIdx = -1; progress = 0;
+        curX = 0; curY = 0; curTool = 'T0'; toolTips = {};
+        trailXY = []; activeArcCenter = null; updateRowSelection(-1);
+        document.getElementById('curMode').innerText = "Ожидание";
+        updateUI(); redraw();
+    }
+
+    function stepNext() {
+        pauseSim();
+        let nextIdx = nextVis(currentIdx + 1);
+        if (nextIdx < 0) return;
+        animateRow(nextIdx, true); updateRowSelection(nextIdx);
+    }
+
+    function stepBack() {
+        pauseSim();
+        let targetIdx = prevVis(currentIdx - 1);
+        if (targetIdx < 0) { resetSim(); return; }
+        resetSim();
+        let prevTool = null;
+        for (let i = 0; i <= targetIdx; i++) {
+            let seg = currentSegments[i];
+            if (!isToolOn(seg.step.tool)) continue;
+            let t = seg.step.tool;
+            let contDisc = prevTool && isDisc(prevTool) && isDisc(t);
+            trailXY.push({x: seg.startX, y: seg.startY, isCut: contDisc, tool: t, brk: !contDisc});
+            trailXY.push({x: seg.endX, y: seg.endY, isCut: true, tool: t});
+            setToolTip(t, seg.endX, seg.endY);
+            prevTool = t;
+        }
+        currentIdx = targetIdx;
+        curTool = currentSegments[targetIdx].step.tool;
+        curX = currentSegments[targetIdx].endX; curY = currentSegments[targetIdx].endY;
+        updateRowSelection(targetIdx); updateUI(); redraw();
+    }
+
+    function updateRowSelection(idx) {
+        const rows = document.querySelectorAll('#recipeTable tbody tr');
+        rows.forEach(r => r.classList.remove('selected'));
+        const arcInfo = document.getElementById('arcInfo');
+        const rowEl = document.querySelector(`#recipeTable tbody tr[data-idx="${idx}"]`);
+        if (idx >= 0 && rowEl) {
+            rowEl.classList.add('selected');
+            rowEl.scrollIntoView({ block: 'nearest' });
+            selectedRowIdx = idx;
+            let step = recipe[idx];
+            if (step.cmd === 'C06' || step.cmd === 'C07') {
+                arcInfo.style.display = 'block';
+                arcInfo.innerHTML = `<b>Дуга (${step.cmd})</b><br>Смещение X: ${step.x}<br>Смещение Y: ${step.y}<br>Радиус R: ${step.r}<br>Направление: ${step.isCW ? 'CW' : 'CCW'}`;
+            } else arcInfo.style.display = 'none';
+        } else { selectedRowIdx = -1; arcInfo.style.display = 'none'; }
+    }
+
+    function addNewRow(targetIndex) {
+        pushHistory();
+        let tool = (recipe[targetIndex - 1] && isToolOn(recipe[targetIndex - 1].tool)) ? recipe[targetIndex - 1].tool
+                 : (selectedTools.has('T1') ? 'T1' : (Array.from(selectedTools)[0] || 'T1'));
+        let baseX = 0, baseY = 0;
+        const o = effTkm(tool);
+        for (let k = Math.min(targetIndex, currentSegments.length) - 1; k >= 0; k--) {
+            if (carOf(currentSegments[k].step.tool) === carOf(tool)) {
+                const pe = edgeShift(currentSegments[k].step.tool);
+                baseX = currentSegments[k].endX - pe.x + o.x; baseY = currentSegments[k].endY - pe.y + o.y; break;
+            }
+        }
+        recipe.splice(targetIndex, 0, { tool: tool, cmd: 'C04', x: +baseX.toFixed(2), y: +baseY.toFixed(2), r: 0, isCW: true });
+        recalcSegments(); renderTable();
+        selectedRowIdx = targetIndex; updateRowSelection(selectedRowIdx);
+        const rowEl = document.querySelector(`#recipeTable tbody tr[data-idx="${targetIndex}"]`);
+        if (rowEl) rowEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        resetSim();
+    }
+
+    function insertRowByIndex() {
+        let input = document.getElementById('insertIndex');
+        let val = parseInt(input.value);
+        if (isNaN(val) || val < 1) addNewRow(recipe.length);
+        else {
+            let targetIdx = val - 1;
+            if (targetIdx > recipe.length) targetIdx = recipe.length;
+            addNewRow(targetIdx);
+        }
+        input.value = '';
+    }
+
+    function insertAfter(index) { addNewRow(index + 1); }
+
+    function swapRows(a, b) {
+        pushHistory();
+        let temp = recipe[a]; recipe[a] = recipe[b]; recipe[b] = temp;
+        recalcSegments(); renderTable();
+        selectedRowIdx = b; updateRowSelection(selectedRowIdx);
+        const rowEl = document.querySelector(`#recipeTable tbody tr[data-idx="${b}"]`);
+        if (rowEl) rowEl.scrollIntoView({ block: 'nearest' });
+        resetSim();
+    }
+    function moveRowUp(index) {
+        let j = -1;
+        for (let k = index - 1; k >= 0; k--) if (isToolOn(recipe[k].tool)) { j = k; break; }
+        if (j >= 0) swapRows(index, j);
+    }
+
+    function moveRowDown(index) {
+        let j = -1;
+        for (let k = index + 1; k < recipe.length; k++) if (isToolOn(recipe[k].tool)) { j = k; break; }
+        if (j >= 0) swapRows(index, j);
+    }
+
+    function deleteRow(index) {
+        pushHistory();
+        recipe.splice(index, 1);
+        recalcSegments(); renderTable(); resetSim();
+    }
+
+    function onCmdChange(index, newCmd) {
+        if (!histApplying) pushHistory();
+        recipe[index].cmd = newCmd;
+        if (newCmd === 'C06') recipe[index].isCW = true;
+        if (newCmd === 'C07') recipe[index].isCW = false;
+        recalcSegments(true);
+        if (!coordPadOpen) renderTable();
+        trailXY = []; redraw();
+    }
+
+    function cpSetCmd(cmd) {
+        if (!coordPadOpen || cpIndex < 0) return;
+        applyCpBufferLive();
+        onCmdChange(cpIndex, cmd);
+        // если поле стало недоступным — переключить
+        const st = recipe[cpIndex];
+        if (!cpKeyAllowed(st, cpKey)) {
+            cpKey = cpKeyAllowed(st, 'x') ? 'x' : (cpKeyAllowed(st, 'y') ? 'y' : 'r');
+        }
+        cpBuffer = fmtCoord(st[cpKey]);
+        cpFresh = true;
+        document.getElementById('cpLabel').textContent = cpKey.toUpperCase();
+        updateCpDisplay();
+        highlightEditSegment(cpIndex);
+        redraw();
+        // пересчитать высоту pad (R мог появиться/исчезнуть визуально)
+        requestAnimationFrame(() => {
+            const pad = document.getElementById('coordPad');
+            const h = pad.offsetHeight || 200;
+            document.documentElement.style.setProperty('--coord-pad-h', h + 'px');
+            const mw = document.getElementById('main-wrapper');
+            if (mw) mw.style.height = 'calc(100% - ' + h + 'px)';
+            syncCanvasSize(true);
+        });
+    }
+
+    function onValueChange(index, key, val, keepView) {
+        if (!histApplying) pushHistory();
+        recipe[index][key] = parseFloat(val) || 0;
+        recalcSegments(keepView !== false);
+        trailXY = [];
+        redraw();
+    }
+
+    // ===== Кастомный цифровой блок (координаты) =====
+    let coordPadOpen = false;
+    let cpIndex = -1, cpKey = 'x', cpBuffer = '0', cpFresh = true;
+
+    function cpHasR(step) {
+        return step && (step.cmd === 'C06' || step.cmd === 'C07');
+    }
+    function cpKeyAllowed(step, key) {
+        if (!step) return false;
+        if (key === 'x') return step.cmd !== 'C03';
+        if (key === 'y') return step.cmd !== 'C02';
+        if (key === 'r') return cpHasR(step);
+        return false;
+    }
+    function fmtCoord(v) {
+        const n = parseFloat(v);
+        if (!isFinite(n)) return '0';
+        const r = Math.round(n * 1000) / 1000;
+        return String(r);
+    }
+
+    function refreshCpRowbar() {
+        const st = recipe[cpIndex];
+        if (!st) return;
+        document.getElementById('cpMetaNum').textContent = String(cpIndex + 1);
+        const toolEl = document.getElementById('cpMetaTool');
+        if (toolEl) {
+            toolEl.textContent = st.tool || '—';
+            toolEl.style.color = toolColors[st.tool] || 'var(--text-bright)';
+        }
+        const xv = document.getElementById('cpChipXv');
+        const yv = document.getElementById('cpChipYv');
+        const rv = document.getElementById('cpChipRv');
+        xv.textContent = fmtCoord(st.x);
+        yv.textContent = fmtCoord(st.y);
+        const hasR = cpHasR(st);
+        rv.textContent = hasR ? fmtCoord(st.r) : '—';
+        const cx = document.getElementById('cpChipX');
+        const cy = document.getElementById('cpChipY');
+        const cr = document.getElementById('cpChipR');
+        cx.classList.toggle('disabled', !cpKeyAllowed(st, 'x'));
+        cy.classList.toggle('disabled', !cpKeyAllowed(st, 'y'));
+        cr.classList.toggle('disabled', !hasR);
+        cr.classList.toggle('missing', !hasR);
+        cx.classList.toggle('active', cpKey === 'x');
+        cy.classList.toggle('active', cpKey === 'y');
+        cr.classList.toggle('active', cpKey === 'r');
+        if (cpKey === 'x') xv.textContent = cpBuffer;
+        if (cpKey === 'y') yv.textContent = cpBuffer;
+        if (cpKey === 'r' && hasR) rv.textContent = cpBuffer;
+        // подсветка типа движения (команды)
+        const bar = document.getElementById('cpCmdBar');
+        if (bar) {
+            bar.querySelectorAll('button[data-cmd]').forEach(b => {
+                b.classList.toggle('active', b.getAttribute('data-cmd') === st.cmd);
+            });
+        }
+    }
+
+    /** Видимые в таблице индексы (с учётом выбранных инструментов) */
+    function cpVisibleIndices() {
+        const list = [];
+        for (let i = 0; i < recipe.length; i++) {
+            if (isToolOn(recipe[i].tool)) list.push(i);
+        }
+        return list;
+    }
+
+    function cpSwitchRow(dir) {
+        if (!coordPadOpen || cpIndex < 0) return;
+        applyCpBufferLive();
+        const vis = cpVisibleIndices();
+        if (!vis.length) return;
+        let pos = vis.indexOf(cpIndex);
+        if (pos < 0) {
+            pos = 0;
+            for (let i = 0; i < vis.length; i++) {
+                if (vis[i] > cpIndex) { pos = i; break; }
+                pos = i;
+            }
+        }
+        const nextPos = Math.max(0, Math.min(vis.length - 1, pos + dir));
+        const newIdx = vis[nextPos];
+        if (newIdx === cpIndex && nextPos === pos) return;
+        cpIndex = newIdx;
+        const st = recipe[cpIndex];
+        if (!cpKeyAllowed(st, cpKey)) {
+            cpKey = cpKeyAllowed(st, 'x') ? 'x' : (cpKeyAllowed(st, 'y') ? 'y' : 'r');
+        }
+        cpBuffer = fmtCoord(st[cpKey]);
+        cpFresh = true;
+        document.getElementById('cpLabel').textContent = cpKey.toUpperCase();
+        updateCpDisplay();
+        updateRowSelection(cpIndex);
+        highlightEditSegment(cpIndex);
+        redraw();
+    }
+
+    /** Вставить новую строку после текущей (пустые координаты 0) и перейти на неё */
+    function cpAddRow() {
+        if (!coordPadOpen || cpIndex < 0) return;
+        applyCpBufferLive();
+        pushHistory();
+        const cur = recipe[cpIndex] || {};
+        const tool = cur.tool || (selectedTools.has('T1') ? 'T1' : (Array.from(selectedTools)[0] || 'T1'));
+        const newIdx = cpIndex + 1;
+        recipe.splice(newIdx, 0, {
+            tool: tool,
+            cmd: 'C04',
+            x: 0, y: 0, r: 0,
+            isCW: true
+        });
+        // убедиться, что инструмент видим
+        if (!selectedTools.has(tool)) {
+            selectedTools.add(tool);
+            const chk = document.getElementById('chk_' + tool);
+            if (chk) chk.checked = true;
+        }
+        recalcSegments(true);
+        trailXY = [];
+        cpIndex = newIdx;
+        cpKey = 'x';
+        cpBuffer = '0';
+        cpFresh = true;
+        document.getElementById('cpLabel').textContent = 'X';
+        updateCpDisplay();
+        updateRowSelection(cpIndex);
+        highlightEditSegment(cpIndex);
+        redraw();
+        requestAnimationFrame(() => {
+            const pad = document.getElementById('coordPad');
+            const h = pad.offsetHeight || 200;
+            document.documentElement.style.setProperty('--coord-pad-h', h + 'px');
+            const mw = document.getElementById('main-wrapper');
+            if (mw) mw.style.height = 'calc(100% - ' + h + 'px)';
+            syncCanvasSize(true);
+        });
+    }
+
+    /** Удалить текущую строку, остаться на соседней */
+    function cpDelRow() {
+        if (!coordPadOpen || cpIndex < 0) return;
+        if (recipe.length <= 1) {
+            alert('Нельзя удалить последнюю строку.');
+            return;
+        }
+        if (!confirm('Удалить строку ' + (cpIndex + 1) + '?')) return;
+        pushHistory();
+        const vis = cpVisibleIndices();
+        let pos = vis.indexOf(cpIndex);
+        recipe.splice(cpIndex, 1);
+        recalcSegments(true);
+        trailXY = [];
+        // выбрать соседнюю видимую
+        const vis2 = cpVisibleIndices();
+        if (!vis2.length) {
+            closeCoordPad();
+            renderTable();
+            return;
+        }
+        if (pos < 0) pos = 0;
+        if (pos >= vis2.length) pos = vis2.length - 1;
+        cpIndex = vis2[pos];
+        const st = recipe[cpIndex];
+        if (!cpKeyAllowed(st, cpKey)) {
+            cpKey = cpKeyAllowed(st, 'x') ? 'x' : (cpKeyAllowed(st, 'y') ? 'y' : 'r');
+        }
+        cpBuffer = fmtCoord(st[cpKey]);
+        cpFresh = true;
+        document.getElementById('cpLabel').textContent = cpKey.toUpperCase();
+        updateCpDisplay();
+        updateRowSelection(cpIndex);
+        highlightEditSegment(cpIndex);
+        redraw();
+    }
+
+    /** Закрыть pad и запустить полную анимацию */
+    function cpPlayAll() {
+        applyCpBufferLive();
+        closeCoordPad();
+        resetSim();
+        playSim();
+    }
+
+    function cpSelectKey(key) {
+        if (!coordPadOpen || cpIndex < 0) return;
+        const st = recipe[cpIndex];
+        if (!cpKeyAllowed(st, key)) return;
+        // зафиксировать текущий буфер
+        applyCpBufferLive();
+        cpKey = key;
+        cpBuffer = fmtCoord(st[key]);
+        cpFresh = true;
+        document.getElementById('cpLabel').textContent = key.toUpperCase();
+        updateCpDisplay();
+        refreshCpRowbar();
+        highlightEditSegment(cpIndex);
+        redraw();
+    }
+
+    function openCoordPad(index, key, currentVal) {
+        if (!isMobileLayout()) return false;
+        pauseSim();
+        closeSidebar();
+        cpIndex = index;
+        const st = recipe[index];
+        if (!cpKeyAllowed(st, key)) {
+            key = cpKeyAllowed(st, 'x') ? 'x' : (cpKeyAllowed(st, 'y') ? 'y' : 'r');
+        }
+        cpKey = key;
+        cpBuffer = fmtCoord(currentVal != null ? currentVal : st[key]);
+        cpFresh = true;
+        coordPadOpen = true;
+        document.body.classList.add('coord-editing');
+        const pad = document.getElementById('coordPad');
+        pad.classList.add('open');
+        pad.setAttribute('aria-hidden', 'false');
+        document.getElementById('cpLabel').textContent = key.toUpperCase();
+        updateCpDisplay();
+        refreshCpRowbar();
+        requestAnimationFrame(() => {
+            const h = pad.offsetHeight || 200;
+            document.documentElement.style.setProperty('--coord-pad-h', h + 'px');
+            const mw = document.getElementById('main-wrapper');
+            if (mw) mw.style.height = 'calc(100% - ' + h + 'px)';
+            syncCanvasSize(true);
+            updateRowSelection(index);
+            highlightEditSegment(index);
+        });
+        return true;
+    }
+
+    function closeCoordPad() {
+        if (!coordPadOpen) return;
+        applyCpBufferLive();
+        coordPadOpen = false;
+        document.body.classList.remove('coord-editing');
+        const pad = document.getElementById('coordPad');
+        pad.classList.remove('open');
+        pad.setAttribute('aria-hidden', 'true');
+        document.documentElement.style.setProperty('--coord-pad-h', '0px');
+        const mw = document.getElementById('main-wrapper');
+        if (mw) mw.style.height = '';
+        activeArcCenter = null;
+        requestAnimationFrame(() => { syncCanvasSize(true); renderTable(); });
+        cpIndex = -1;
+    }
+
+    function updateCpDisplay() {
+        document.getElementById('cpValue').textContent = cpBuffer;
+        refreshCpRowbar();
+    }
+
+    function applyCpBufferLive() {
+        if (cpIndex < 0 || !recipe[cpIndex]) return;
+        let v = parseFloat(cpBuffer);
+        if (!isFinite(v)) v = 0;
+        v = Math.round(v * 1000) / 1000;
+        const prev = recipe[cpIndex][cpKey];
+        if (prev === v) {
+            highlightEditSegment(cpIndex);
+            redraw();
+            return;
+        }
+        if (!histApplying) pushHistory();
+        recipe[cpIndex][cpKey] = v;
+        recalcSegments(true);
+        trailXY = [];
+        highlightEditSegment(cpIndex);
+        redraw();
+    }
+
+    function cpNudge(delta) {
+        let v = parseFloat(cpBuffer);
+        if (!isFinite(v)) v = 0;
+        v = Math.round((v + delta) * 1000) / 1000;
+        cpBuffer = fmtCoord(v);
+        cpFresh = true;
+        updateCpDisplay();
+        applyCpBufferLive();
+    }
+
+    function highlightEditSegment(index) {
+        const seg = currentSegments[index];
+        if (!seg) return;
+        // Показать дугу/отрезок как активный
+        if (seg.step.cmd === 'C06' || seg.step.cmd === 'C07') {
+            let x1 = seg.startX, y1 = seg.startY, x2 = seg.endX, y2 = seg.endY;
+            let r = seg.actualR, q = Math.hypot(x2 - x1, y2 - y1);
+            if (r >= q / 2 && q > 0) {
+                let x3 = (x1 + x2) / 2, y3 = (y1 + y2) / 2;
+                let h = Math.sqrt(r * r - (q * q) / 4);
+                let cx, cy;
+                if (seg.isCW) { cx = x3 - h * (y1 - y2) / q; cy = y3 - h * (x2 - x1) / q; }
+                else { cx = x3 + h * (y1 - y2) / q; cy = y3 + h * (x2 - x1) / q; }
+                activeArcCenter = { cx, cy, x1, y1, x2, y2 };
+            } else activeArcCenter = null;
+        } else activeArcCenter = null;
+        curX = seg.endX; curY = seg.endY; curTool = seg.step.tool;
+        setToolTip(curTool, curX, curY);
+        updateUI();
+    }
+
+    function cpKeyPress(k) {
+        if (!coordPadOpen) return;
+        if (k === 'ok') { closeCoordPad(); return; }
+        if (k === 'up') { cpNudge(0.1); return; }
+        if (k === 'down') { cpNudge(-0.1); return; }
+        if (k === 'prevrow') { cpSwitchRow(-1); return; }
+        if (k === 'nextrow') { cpSwitchRow(1); return; }
+        if (k === 'addrow') { cpAddRow(); return; }
+        if (k === 'delrow') { cpDelRow(); return; }
+        if (k === 'play') { cpPlayAll(); return; }
+        if (k === 'del') {
+            if (cpFresh || cpBuffer.length <= 1 || (cpBuffer.length === 2 && cpBuffer[0] === '-')) {
+                cpBuffer = '0'; cpFresh = true;
+            } else {
+                cpBuffer = cpBuffer.slice(0, -1);
+                if (cpBuffer === '-' || cpBuffer === '') { cpBuffer = '0'; cpFresh = true; }
+            }
+        } else if (k === 'clear') {
+            cpBuffer = '0'; cpFresh = true;
+        } else if (k === 'sign') {
+            if (cpBuffer.startsWith('-')) cpBuffer = cpBuffer.slice(1) || '0';
+            else if (cpBuffer !== '0') cpBuffer = '-' + cpBuffer;
+            else cpBuffer = '-0';
+            cpFresh = false;
+        } else if (k === '.') {
+            if (cpFresh) { cpBuffer = '0.'; cpFresh = false; }
+            else if (!cpBuffer.includes('.')) cpBuffer += '.';
+        } else if (/^\d$/.test(k)) {
+            if (cpFresh || cpBuffer === '0' || cpBuffer === '-0') {
+                cpBuffer = (cpBuffer.startsWith('-') ? '-' : '') + k;
+                if (cpBuffer === '-0' && k !== '0') cpBuffer = '-' + k;
+                cpFresh = false;
+            } else {
+                if (cpBuffer.replace('-', '').replace('.', '').length >= 10) return;
+                cpBuffer += k;
+            }
+        } else return;
+        updateCpDisplay();
+        applyCpBufferLive();
+    }
+
+    (function setupCoordPadNoSelect() {
+        const pad = document.getElementById('coordPad');
+        if (!pad) return;
+        pad.addEventListener('contextmenu', (e) => e.preventDefault());
+        pad.addEventListener('selectstart', (e) => e.preventDefault());
+        pad.addEventListener('dragstart', (e) => e.preventDefault());
+    })();
+    document.getElementById('coordPad').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-k]');
+        if (!btn) return;
+        e.preventDefault();
+        if (btn._cpLongFired) { btn._cpLongFired = false; return; }
+        cpKeyPress(btn.getAttribute('data-k'));
+    });
+    // Удержание ▲/▼ — повтор шага 0.1 мм
+    (function setupCpLongPress() {
+        const pad = document.getElementById('coordPad');
+        let timer = null, rep = null;
+        const stop = () => { clearTimeout(timer); clearInterval(rep); timer = rep = null; };
+        pad.addEventListener('pointerdown', (e) => {
+            const btn = e.target.closest('button[data-k]');
+            if (!btn) return;
+            const k = btn.getAttribute('data-k');
+            if (k !== 'up' && k !== 'down') return;
+            btn._cpLongFired = false;
+            stop();
+            timer = setTimeout(() => {
+                btn._cpLongFired = true;
+                cpKeyPress(k);
+                rep = setInterval(() => cpKeyPress(k), 80);
+            }, 350);
+        });
+        pad.addEventListener('pointerup', stop);
+        pad.addEventListener('pointerleave', stop);
+        pad.addEventListener('pointercancel', stop);
+    })();
+
+    function bindCoordInput(input, index, key, disabled) {
+        input.type = 'text';
+        input.className = 'coord-inp';
+        input.inputMode = 'none';
+        input.readOnly = true;
+        input.disabled = !!disabled;
+        input.value = fmtCoord(recipe[index][key]);
+        input.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        if (disabled) return;
+        const open = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isMobileLayout()) {
+                openCoordPad(index, key, recipe[index][key]);
+            } else {
+                input.readOnly = false;
+                input.inputMode = 'decimal';
+                input.focus();
+                input.select();
+            }
+        };
+        input.addEventListener('pointerdown', open);
+        input.addEventListener('focus', (e) => {
+            if (isMobileLayout()) {
+                e.target.blur();
+                openCoordPad(index, key, recipe[index][key]);
+            }
+        });
+        input.addEventListener('change', (e) => onValueChange(index, key, e.target.value, true));
+        input.addEventListener('blur', () => {
+            if (!isMobileLayout()) {
+                input.readOnly = true;
+                input.inputMode = 'none';
+                input.value = fmtCoord(recipe[index][key]);
+            }
+        });
+    }
+
+    function renderTable() {
+        const tbody = document.querySelector('#recipeTable tbody');
+        tbody.innerHTML = '';
+        recipe.forEach((step, index) => {
+            if (!isToolOn(step.tool)) return;
+            const tr = document.createElement('tr');
+            tr.dataset.idx = index;
+            if (step.id) tr.title = 'строка программы ' + step.id;
+            tr.innerHTML = `<td>${index+1}</td><td style="color:${toolColors[step.tool] || '#ccc'}">${step.tool}</td>`;
+            const tdCmd = document.createElement('td');
+            const selectCmd = document.createElement('select');
+            selectCmd.innerHTML = `
+                <option value="C04">X+Y</option>
+                <option value="C02">X</option>
+                <option value="C03">Y</option>
+                <option value="C05">X+Y отн.</option>
+                <option value="C06">Дуга CW</option>
+                <option value="C07">Дуга CCW</option>
+            `;
+            selectCmd.value = step.cmd;
+            selectCmd.onchange = (e) => onCmdChange(index, e.target.value);
+            tdCmd.appendChild(selectCmd); tr.appendChild(tdCmd);
+
+            const tdX = document.createElement('td');
+            const inputX = document.createElement('input');
+            inputX.step = '0.1';
+            bindCoordInput(inputX, index, 'x', step.cmd === 'C03');
+            tdX.appendChild(inputX); tr.appendChild(tdX);
+
+            const tdY = document.createElement('td');
+            const inputY = document.createElement('input');
+            inputY.step = '0.1';
+            bindCoordInput(inputY, index, 'y', step.cmd === 'C02');
+            tdY.appendChild(inputY); tr.appendChild(tdY);
+
+            if (step.cmd === 'C06' || step.cmd === 'C07') {
+                const tdR = document.createElement('td');
+                const inputR = document.createElement('input');
+                inputR.step = '0.1';
+                bindCoordInput(inputR, index, 'r', false);
+                tdR.appendChild(inputR); tr.appendChild(tdR);
+
+                const tdDir = document.createElement('td');
+                const select = document.createElement('select');
+                select.innerHTML = `<option value="1">CW</option><option value="0">CCW</option>`;
+                select.value = step.isCW ? "1" : "0";
+                select.onchange = (e) => {
+                    if (!histApplying) pushHistory();
+                    recipe[index].isCW = (e.target.value === "1");
+                    recalcSegments(true); trailXY = []; redraw();
+                };
+                tdDir.appendChild(select); tr.appendChild(tdDir);
+            } else {
+                const td = document.createElement('td'); td.innerText = '-'; td.style.color = '#555';
+                tr.appendChild(td);
+                const td2 = document.createElement('td'); td2.innerText = '-'; td2.style.color = '#555';
+                tr.appendChild(td2);
+            }
+
+            const tdAction = document.createElement('td');
+            const divBtns = document.createElement('div');
+            divBtns.className = 'action-btns';
+
+            const btnUp = document.createElement('button');
+            btnUp.innerText = '↑'; btnUp.className = 'btn-mini btn-move'; btnUp.title = "Переместить вверх";
+            btnUp.onclick = (e) => { e.stopPropagation(); moveRowUp(index); };
+
+            const btnDown = document.createElement('button');
+            btnDown.innerText = '↓'; btnDown.className = 'btn-mini btn-move'; btnDown.title = "Переместить вниз";
+            btnDown.onclick = (e) => { e.stopPropagation(); moveRowDown(index); };
+
+            const btnIns = document.createElement('button');
+            btnIns.innerText = '+'; btnIns.className = 'btn-mini btn-ins'; btnIns.title = "Вставить строку после этой";
+            btnIns.onclick = (e) => { e.stopPropagation(); insertAfter(index); };
+
+            const btnDel = document.createElement('button');
+            btnDel.innerText = '×'; btnDel.className = 'btn-mini btn-del'; btnDel.title = "Удалить";
+            btnDel.onclick = (e) => { e.stopPropagation(); deleteRow(index); };
+
+            divBtns.appendChild(btnUp);
+            divBtns.appendChild(btnDown);
+            divBtns.appendChild(btnIns);
+            divBtns.appendChild(btnDel);
+            tdAction.appendChild(divBtns); tr.appendChild(tdAction);
+
+            tr.onclick = (e) => {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') {
+                    pauseSim();
+                    let keepTrail = (index === currentIdx + 1);
+                    animateRow(index, keepTrail); updateRowSelection(index);
+                }
+            };
+            tr.ondblclick = (e) => {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') {
+                    pauseSim(); animateRow(index, false); updateRowSelection(index);
+                }
+            };
+            tbody.appendChild(tr);
+        });
+    }
+
+
+    // ================= ЗАГРУЗКА CSV С РЕЦЕПТАМИ =================
+    // Формат: строка-заголовок профиля (в поле 2 дата ДД.ММ.ГГГГ), затем шаги с ID по возрастанию.
+    // Десятичный разделитель в файле — запятая, поэтому "20,5" приходит как два поля (20 и 5).
+    let csvPrograms = [];
+    let builtinTitle = 'PLAFEN 60 STVORKA (встроенный)';
+
+    function joinDec(a, b) {
+        // a = целая часть (может быть "-0"), b = дробная часть как строка цифр
+        const neg = String(a).trim().startsWith('-');
+        const v = parseFloat(Math.abs(parseInt(a, 10)) + '.' + b);
+        return neg ? -v : v;
+    }
+
+    const KNOWN_TOOL = /^T(0[0-6]|2[1-5])$/;
+    const dIn = v => String(v).replace('-', '').length;   // число цифр в токене
+
+    function parseCsvStep(f, ctx) {
+        // f: поля строки; ctx: {pos:{tool:{x,y}}, last:{x,y}} — для разбора неоднозначных дробей
+        const tool = (f[1] || '').trim();
+        const cmdRaw = (f[2] || '').trim();
+        if (!KNOWN_TOOL.test(tool)) return null;
+        const cmd = cmdRaw.substring(0, 3);
+        if (!['C02', 'C03', 'C04', 'C05', 'C06', 'C07'].includes(cmd)) return null;
+        const N = [];
+        for (let i = 3; i < f.length; i++) {
+            if (/^-?\d+$/.test(f[i].trim())) N.push(f[i].trim()); else break;
+        }
+        const step = { id: (f[0] || '').trim(), tool, cmd, x: 0, y: 0, r: 0 };
+        if (cmd === 'C06' || cmd === 'C07') {
+            // x, y, r (+ последний токен — скорость/флаг); дроби разворачивают токены
+            const t = N.slice(0, -1);
+            if (t.length === 3)      { step.x = +t[0]; step.y = +t[1]; step.r = +t[2]; }
+            else if (t.length === 4) { step.x = joinDec(t[0], t[1]); step.y = +t[2]; step.r = +t[3]; }
+            else if (t.length === 5) { step.x = joinDec(t[0], t[1]); step.y = joinDec(t[2], t[3]); step.r = +t[4]; }
+            else if (t.length >= 6)  { step.x = joinDec(t[0], t[1]); step.y = joinDec(t[2], t[3]); step.r = joinDec(t[4], t[5]); }
+            else return null;
+            step.isCW = (cmd === 'C06');
+            return step;
+        }
+        const t = N.slice(0, -2); // без флага и скорости
+        if (cmd === 'C02') {
+            if (t.length === 2)      step.x = +t[0];
+            else if (t.length >= 3)  step.x = joinDec(t[0], t[1]);
+            else return null;
+        } else if (cmd === 'C03') {
+            if (t.length === 2)      step.y = +t[1];
+            else if (t.length === 3) step.y = joinDec(t[1], t[2]);
+            else if (t.length >= 4)  { step.x = joinDec(t[0], t[1]); step.y = joinDec(t[2], t[3]); step.cmd = 'C04'; }
+            else return null;
+        } else { // C04 / C05
+            if (t.length === 2)      { step.x = +t[0]; step.y = +t[1]; }
+            else if (t.length === 3) {
+                const A = { x: joinDec(t[0], t[1]), y: +t[2] };   // 108,3,30 -> x=108.3, y=30
+                const B = { x: +t[0], y: joinDec(t[1], t[2]) };   // 5,-0,7  -> x=5, y=-0.7
+                let pick;
+                if (t[1].startsWith('-') || /^0$/.test(t[1])) pick = B;     // у дроби нет знака; "0" в середине — это y=0.d
+                else if (t[2] === '0') pick = A;
+                else if (dIn(t[1]) === 1 && dIn(t[2]) >= 2) pick = A;
+                else if (dIn(t[1]) >= 2 && dIn(t[2]) === 1) pick = B;
+                else {
+                    const ref = (ctx && (ctx.pos[tool] || ctx.last)) || null;
+                    if (cmd === 'C04' && ref) {
+                        const dA = Math.hypot(A.x - ref.x, A.y - ref.y), dB = Math.hypot(B.x - ref.x, B.y - ref.y);
+                        pick = dA <= dB ? A : B;
+                    } else pick = (dIn(t[1]) === 1) ? A : B;
+                }
+                step.x = pick.x; step.y = pick.y;
+            }
+            else if (t.length >= 4) {
+                if (t[3].startsWith('-')) { step.x = joinDec(t[0], t[1]); step.y = +t[2]; }
+                else                      { step.x = joinDec(t[0], t[1]); step.y = joinDec(t[2], t[3]); }
+            } else return null;
+        }
+        return step;
+    }
+
+    function trackPos(ctx, st) {
+        const p = ctx.pos[st.tool] || (ctx.pos[st.tool] = { x: 0, y: 0 });
+        if (st.cmd === 'C04') { p.x = st.x; p.y = st.y; }
+        else if (st.cmd === 'C02') p.x = st.x;
+        else if (st.cmd === 'C03') p.y = st.y;
+        else { p.x += st.x; p.y += st.y; }
+        ctx.last = { x: p.x, y: p.y };
+    }
+
+    function parseRecipeCsv(text) {
+        const rows = text.split(/\r?\n/).map(l => l.split(',')).filter(r => /^\d+$/.test((r[0] || '').trim()));
+        rows.sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10));
+        const progs = [];
+        let cur = null, ctx = null;
+        rows.forEach(r => {
+            if (/^\d\d\.\d\d\.\d{4}$/.test((r[1] || '').trim())) {
+                const brand = (r[2] || '').trim(), num = (r[3] || '').trim(), type = (r[4] || '').trim();
+                const parts = [brand];
+                if (num && !brand.includes(num)) parts.push(num);
+                if (type) parts.push(type);
+                cur = { id: r[0].trim(), date: r[1].trim(), name: parts.join(' '),
+                        status: (r.find(x => x === 'ACTIVE' || x === 'PASSIVE') || ''), steps: [] };
+                ctx = { pos: {}, last: null };
+                progs.push(cur);
+            } else if (cur) {
+                const st = parseCsvStep(r, ctx);
+                if (st) { cur.steps.push(st); trackPos(ctx, st); }
+            }
+        });
+        return progs;
+    }
+
+    function fillProfileSelect(filter) {
+        const sel = document.getElementById('profileSelect');
+        const q = (filter || '').toLowerCase();
+        sel.innerHTML = '';
+        csvPrograms.forEach((p, i) => {
+            const label = `${p.id} · ${p.name} · ${p.date}${p.status === 'PASSIVE' ? ' (пассив.)' : ''}`;
+            if (q && !label.toLowerCase().includes(q)) return;
+            const o = document.createElement('option');
+            o.value = i; o.textContent = label; sel.appendChild(o);
+        });
+        if (!sel.options.length) sel.innerHTML = '<option value="">— ничего не найдено —</option>';
+    }
+    function filterProfiles() {
+        fillProfileSelect(document.getElementById('profileFilter').value);
+        const sel = document.getElementById('profileSelect');
+        if (sel.options.length && sel.value !== '') selectProfile(sel.value);
+    }
+
+    function loadRecipe(steps) {
+        pauseSim();
+        originalRecipe = steps.map(st => ({ ...st, tool: normTool(st.tool), isCW: st.cmd === 'C06' }));
+        recipe = JSON.parse(JSON.stringify(originalRecipe));
+        histPast = []; histFuture = []; updateUndoUI();
+        currentIdx = -1; progress = 0; trailXY = []; toolTips = {}; selectedRowIdx = -1;
+        updateToolCounts();
+        recalcSegments(); renderTable(); resetSim();
+    }
+
+    let currentProgramIdx = -1;
+    function selectProfile(i) {
+        const idx = parseInt(i, 10);
+        const p = csvPrograms[idx];
+        if (!p) return;
+        currentProgramIdx = idx;
+        loadRecipe(p.steps);
+        document.getElementById('profileTitle').textContent =
+            `Профиль: ${p.name} — №${p.id}, ${p.date}, ходов: ${p.steps.length}`;
+        if (isMobileLayout()) closeSidebar();
+    }
+
+    // ================= АВТОНОМНЫЙ ПАРСЕР JET 4.0 (.MDB) =================
+    function isJet4Mdb(buf) {
+        if (buf.byteLength < 32) return false;
+        const b = new Uint8Array(buf, 4, 15);
+        let s = '';
+        for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+        return s === 'Standard Jet DB';
+    }
+
+    function decodeJet4Str(bytes, start, end) {
+        if (end <= start) return '';
+        if (end - start >= 2 && bytes[start] === 0xFF && bytes[start + 1] === 0xFE) {
+            let out = '', comp = true, i = start + 2;
+            while (i < end) {
+                if (bytes[i] === 0x00) { comp = !comp; i++; }
+                else if (comp) { out += String.fromCharCode(bytes[i]); i++; }
+                else {
+                    if (i + 1 < end) out += String.fromCharCode(bytes[i] | (bytes[i + 1] << 8));
+                    i += 2;
+                }
+            }
+            return out;
+        }
+        let out = '';
+        for (let i = start; i + 1 < end; i += 2) {
+            out += String.fromCharCode(bytes[i] | (bytes[i + 1] << 8));
+        }
+        return out;
+    }
+
+    function jet4ReadTdef(dv, bytes, pageNum) {
+        const PS = 4096;
+        const chunks = [];
+        let p = pageNum, totalLen = 0;
+        while (p !== 0) {
+            const off = p * PS;
+            if (off + PS > bytes.length || bytes[off] !== 0x02) break;
+            const nextP = dv.getUint32(off + 4, true);
+            const slice = (p === pageNum) ? bytes.subarray(off, off + PS) : bytes.subarray(off + 8, off + PS);
+            chunks.push(slice);
+            totalLen += slice.length;
+            p = nextP;
+        }
+        const buf = new Uint8Array(totalLen);
+        let pos = 0;
+        for (const ch of chunks) { buf.set(ch, pos); pos += ch.length; }
+        const tdv = new DataView(buf.buffer);
+        const numCols = tdv.getUint16(45, true);
+        const numRealIdxs = tdv.getUint32(51, true);
+        const usedPagesPtr = tdv.getUint32(55, true);
+        pos = 63 + numRealIdxs * 12;
+        const cols = [];
+        for (let i = 0; i < numCols; i++) {
+            const type = buf[pos];
+            const id = tdv.getUint16(pos + 5, true);
+            const varNum = tdv.getUint16(pos + 7, true);
+            const flags = buf[pos + 15];
+            const fixedOff = tdv.getUint16(pos + 21, true);
+            const len = tdv.getUint16(pos + 23, true);
+            cols.push({ type, id, varNum, fixed: Boolean(flags & 1), fixedOff, len, name: '' });
+            pos += 25;
+        }
+        for (let i = 0; i < numCols; i++) {
+            const nlen = tdv.getUint16(pos, true);
+            pos += 2;
+            cols[i].name = decodeJet4Str(buf, pos, pos + nlen);
+            pos += nlen;
+        }
+        return { cols, usedPagesPtr };
+    }
+
+    function jet4GetUsedPages(dv, bytes, usageMapPtr) {
+        const PS = 4096;
+        const rowNum = usageMapPtr & 0xFF;
+        const pageNum = usageMapPtr >>> 8;
+        const off = pageNum * PS;
+        const rowStart = dv.getUint16(off + 14 + rowNum * 2, true) & 0x1FFF;
+        const rowEnd = (rowNum === 0) ? PS : (dv.getUint16(off + 14 + (rowNum - 1) * 2, true) & 0x1FFF);
+        const umap = bytes.subarray(off + rowStart, off + rowEnd);
+        const udv = new DataView(umap.buffer, umap.byteOffset, umap.byteLength);
+        const mapType = umap[0];
+        const pages = [];
+        if (mapType === 0) {
+            const pageStart = udv.getUint32(1, true);
+            for (let bi = 5; bi < umap.length; bi++) {
+                const b = umap[bi];
+                if (!b) continue;
+                for (let bit = 0; bit < 8; bit++) {
+                    if (b & (1 << bit)) pages.push(pageStart + (bi - 5) * 8 + bit);
+                }
+            }
+        } else if (mapType === 1) {
+            for (let i = 1; i + 4 <= umap.length; i += 4) {
+                const mp = udv.getUint32(i, true);
+                if (!mp) continue;
+                const moff = mp * PS;
+                const basePage = ((i - 1) / 4) * (PS - 4) * 8;
+                for (let bi = 4; bi < PS; bi++) {
+                    const b = bytes[moff + bi];
+                    if (!b) continue;
+                    for (let bit = 0; bit < 8; bit++) {
+                        if (b & (1 << bit)) pages.push(basePage + (bi - 4) * 8 + bit);
+                    }
+                }
+            }
+        }
+        return pages;
+    }
+
+    function jet4GetRowSlice(dv, bytes, pageNum, rowNum) {
+        const PS = 4096;
+        const off = pageNum * PS;
+        const rp = dv.getUint16(off + 14 + rowNum * 2, true);
+        const rowStart = rp & 0x1FFF;
+        const rowEnd = (rowNum === 0) ? PS : (dv.getUint16(off + 14 + (rowNum - 1) * 2, true) & 0x1FFF);
+        if (rowEnd <= rowStart) return null;
+        return bytes.subarray(off + rowStart, off + rowEnd);
+    }
+
+    function jet4DecodeRow(rb, cols) {
+        if (!rb || rb.length < 4) return null;
+        const rdv = new DataView(rb.buffer, rb.byteOffset, rb.byteLength);
+        const colCount = rdv.getUint16(0, true);
+        const nullMaskLen = (colCount + 7) >> 3;
+        const nullMaskPos = rb.length - nullMaskLen;
+        if (nullMaskPos < 2) return null;
+        const varLenPos = nullMaskPos - 2;
+        const numVar = rdv.getUint16(varLenPos, true);
+        const varOffsets = new Array(numVar + 1);
+        for (let v = 0; v <= numVar; v++) {
+            varOffsets[v] = rdv.getUint16(varLenPos - 2 * (v + 1), true);
+        }
+        const obj = {};
+        for (let i = 0; i < cols.length; i++) {
+            const c = cols[i];
+            const cid = c.id;
+            if (cid >= colCount) { obj[c.name] = null; continue; }
+            const notNull = (rb[nullMaskPos + (cid >> 3)] >> (cid & 7)) & 1;
+            if (!notNull) { obj[c.name] = null; continue; }
+            if (c.fixed) {
+                const foff = 2 + c.fixedOff;
+                if (c.type === 4) obj[c.name] = rdv.getInt32(foff, true);
+                else if (c.type === 3) obj[c.name] = rdv.getInt16(foff, true);
+                else if (c.type === 1) obj[c.name] = true;
+                else obj[c.name] = null;
+            } else {
+                const vn = c.varNum;
+                if (vn < numVar) {
+                    const vs = varOffsets[vn], ve = varOffsets[vn + 1];
+                    obj[c.name] = (c.type === 10) ? decodeJet4Str(rb, vs, ve) : null;
+                } else obj[c.name] = null;
+            }
+        }
+        return obj;
+    }
+
+    function jet4ReadTableRows(dv, bytes, tdef) {
+        const PS = 4096;
+        const pages = jet4GetUsedPages(dv, bytes, tdef.usedPagesPtr);
+        const rows = [];
+        for (const p of pages) {
+            const off = p * PS;
+            if (off + PS > bytes.length || bytes[off] !== 0x01) continue;
+            const nr = dv.getUint16(off + 12, true);
+            for (let r = 0; r < nr; r++) {
+                const rp = dv.getUint16(off + 14 + r * 2, true);
+                if (rp & 0x8000) continue; // удалена или цель переполнения
+                let rb = jet4GetRowSlice(dv, bytes, p, r);
+                if (rp & 0x4000) { // указатель на перенесённую строку
+                    if (!rb || rb.length < 4) continue;
+                    const tRow = rb[0];
+                    const tPage = rb[1] | (rb[2] << 8) | (rb[3] << 16);
+                    rb = jet4GetRowSlice(dv, bytes, tPage, tRow);
+                }
+                const row = jet4DecodeRow(rb, tdef.cols);
+                if (row) rows.push(row);
+            }
+        }
+        return rows;
+    }
+
+    function parseNumMdb(val) {
+        if (val == null) return 0;
+        const n = parseFloat(String(val).trim().replace(',', '.'));
+        return isFinite(n) ? n : 0;
+    }
+
+    function parseRecipeMdb(buf) {
+        const dv = new DataView(buf);
+        const bytes = new Uint8Array(buf);
+        const msys = jet4ReadTdef(dv, bytes, 2);
+        const msysRows = jet4ReadTableRows(dv, bytes, msys);
+        const tbl = msysRows.find(r => r.Type === 1 && r.Name === 'Table1');
+        if (!tbl) throw new Error('Таблица Table1 не найдена в базе MDB.');
+        const t1 = jet4ReadTdef(dv, bytes, tbl.Id);
+        const rows = jet4ReadTableRows(dv, bytes, t1);
+        rows.sort((a, b) => (a.KYT || 0) - (b.KYT || 0));
+
+        const rowToArr = (r) => {
+            const a = new Array(15);
+            for (let k = 1; k <= 15; k++) a[k - 1] = (r[String(k)] == null) ? '' : String(r[String(k)]);
+            return a;
+        };
+        const progs = [];
+        let cur = null;
+        for (const r of rows) {
+            const c1 = (r['1'] || '').trim();
+            const c2 = (r['2'] || '').trim().toUpperCase();
+            if (/^\d\d[./]\d\d[./]\d{4}$/.test(c1)) {
+                const brand = (r['2'] || '').trim(), num = (r['3'] || '').trim(), type = (r['4'] || '').trim();
+                const parts = [brand];
+                if (num && !brand.includes(num)) parts.push(num);
+                if (type) parts.push(type);
+                let status = 'ACTIVE';
+                for (let k = 5; k <= 15; k++) {
+                    const v = (r[String(k)] || '').trim().toUpperCase();
+                    if (v === 'ACTIVE' || v === 'PASSIVE' || v === 'AKTIF' || v === 'PASIF') {
+                        status = (v === 'PASSIVE' || v === 'PASIF') ? 'PASSIVE' : 'ACTIVE';
+                        break;
+                    }
+                }
+                cur = {
+                    id: String(r.KYT), slotStart: r.KYT, date: c1, brand, series: num, type,
+                    name: parts.join(' '), status,
+                    rawHeader: rowToArr(r), rawStart: null, rawStop: null, steps: []
+                };
+                progs.push(cur);
+            } else if (cur && (c2.startsWith('C00') || c2.startsWith('K00'))) {
+                cur.rawStart = rowToArr(r);
+            } else if (cur && (c2.startsWith('C01') || c2.startsWith('K01'))) {
+                cur.rawStop = rowToArr(r);
+            } else if (cur && KNOWN_TOOL.test(c1)) {
+                let cmd = c2.substring(0, 3);
+                if (cmd.startsWith('K')) cmd = 'C' + cmd.substring(1); // совместимость со старыми K02..K07
+                if (!['C02', 'C03', 'C04', 'C05', 'C06', 'C07'].includes(cmd)) continue;
+                const x = parseNumMdb(r['3']);
+                const y = parseNumMdb(r['4']);
+                const rad = parseNumMdb(r['5']);
+                const step = { id: String(r.KYT), tool: c1, cmd, x, y, r: rad, rawCols: rowToArr(r) };
+                if (cmd === 'C06' || cmd === 'C07') step.isCW = (cmd === 'C06');
+                cur.steps.push(step);
+            }
+        }
+        return progs;
+    }
+
+    document.getElementById('csvInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                if (isJet4Mdb(reader.result) || file.name.toLowerCase().endsWith('.mdb')) {
+                    csvPrograms = parseRecipeMdb(reader.result).filter(p => p.steps.length > 0);
+                } else {
+                    let text;
+                    try { text = new TextDecoder('windows-1251').decode(reader.result); }
+                    catch (err) { text = new TextDecoder('latin1').decode(reader.result); }
+                    csvPrograms = parseRecipeCsv(text).filter(p => p.steps.length > 0);
+                }
+            } catch (err) {
+                alert('Ошибка чтения файла: ' + err.message);
+                return;
+            }
+            if (!csvPrograms.length) { alert('В файле не найдено ни одного профиля с ходами.'); return; }
+            document.getElementById('profileSelect').disabled = false;
+            document.getElementById('profileFilter').disabled = false;
+            document.getElementById('profileFilter').value = '';
+            fillProfileSelect('');
+            selectProfile(0);
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = '';
+    });
+
+
+    // ================= ПАНЕЛЬ ИНСТРУМЕНТОВ =================
+    function buildToolPanel() {
+        const grid = document.getElementById('toolGrid'), og = document.getElementById('offGrid');
+        grid.innerHTML = ''; og.innerHTML = '';
+        const groups = { U: 'Оси 3/4 (T0–T6)', L: 'Оси 1/2 (T21–T25)' };
+        let lastCar = '';
+        TOOL_DEFS.forEach(t => {
+            if (t.car !== lastCar) {
+                const g = document.createElement('div'); g.className = 'tool-grp'; g.textContent = groups[t.car];
+                grid.appendChild(g); lastCar = t.car;
+            }
+            const lab = document.createElement('label');
+            lab.className = 'tool-item'; lab.id = 'ti_' + t.id; lab.title = t.fw;
+            lab.innerHTML = `<input type="checkbox" id="chk_${t.id}" ${selectedTools.has(t.id) ? 'checked' : ''}>
+                <input type="color" id="col_${t.id}" value="${toolColors[t.id]}">
+                <span class="tn">${t.id}</span><span class="tc" id="cnt_${t.id}"></span>`;
+            grid.appendChild(lab);
+            lab.querySelector('input[type=checkbox]').onchange = (e) => toggleTool(t.id, e.target.checked);
+            lab.querySelector('input[type=color]').oninput = (e) => { toolColors[t.id] = e.target.value; redraw(); };
+            lab.querySelector('input[type=color]').onclick = (e) => e.stopPropagation();
+
+            const nm = document.createElement('span'); nm.textContent = t.id; nm.title = t.fw; nm.style.color = 'var(--text-bright)';
+            const ix = document.createElement('input'); ix.type = 'number'; ix.step = '0.1'; ix.value = 0; ix.title = 'x_tkm';
+            const iy = document.createElement('input'); iy.type = 'number'; iy.step = '0.1'; iy.value = 0; iy.title = 'y_tkm';
+            ix.onchange = () => { toolOffsets[t.id].x = parseFloat(ix.value) || 0; offsetsChanged(); };
+            iy.onchange = () => { toolOffsets[t.id].y = parseFloat(iy.value) || 0; offsetsChanged(); };
+            og.appendChild(nm); og.appendChild(ix); og.appendChild(iy);
+        });
+        updateToolCounts();
+    }
+    function updateToolCounts() {
+        TOOL_DEFS.forEach(t => {
+            const n = originalRecipe.filter(s => s.tool === t.id).length;
+            const el = document.getElementById('cnt_' + t.id); if (el) el.textContent = n ? '(' + n + ')' : '';
+            const it = document.getElementById('ti_' + t.id); if (it) it.classList.toggle('empty', n === 0);
+        });
+    }
+    function toolSelectionChanged() {
+        resetSim(); trailXY = []; toolTips = {};
+        recalcSegments(); renderTable();
+    }
+    function toggleTool(id, on) {
+        if (on) selectedTools.add(id); else selectedTools.delete(id);
+        toolSelectionChanged();
+    }
+    function setToolSelection(mode) {
+        selectedTools = new Set(mode === 'all' ? TOOL_DEFS.map(t => t.id) : (mode === 'none' ? [] : ['T0', 'T1']));
+        TOOL_DEFS.forEach(t => { const c = document.getElementById('chk_' + t.id); if (c) c.checked = selectedTools.has(t.id); });
+        toolSelectionChanged();
+    }
+    function offsetsChanged() { resetSim(); trailXY = []; toolTips = {}; recalcSegments(); }
+
+    buildToolPanel();
+    recalcSegments();
+    renderTable();
+    setTimeout(() => { resizeCanvas(); updateZoomText(); }, 100);
+    updateSpeedFromSlider(document.getElementById('speedSlider').value);
+    updateUndoUI();
+    if (isMobileLayout()) {
+        const closeBtn = document.getElementById('btnCloseSidebar');
+        if (closeBtn) closeBtn.style.display = 'block';
+    }
+
+    // ================= ОКНО УПРАВЛЕНИЯ ПРОФИЛЕМ И СВЯЗЬ С SERVER.PY =================
+    let serverConnected = false;
+    let serverDbInfo = null;
+
+    const CMD_FULL_MAP = {
+        C02: 'C02 ABS X',
+        C03: 'C03 ABS Y',
+        C04: 'C04 ABS X-Y',
+        C05: 'C05 RELATIVE',
+        C06: 'C06 CIRCLE +',
+        C07: 'C07 CIRCLE -'
+    };
+
+    function fmtMdbNum(v) {
+        const n = Number(v);
+        if (!isFinite(n) || Math.abs(n) < 1e-9) return '0';
+        return String(+n.toFixed(4)).replace('.', ',');
+    }
+
+    function fmtMdbTool(t) {
+        const n = parseInt(String(t).replace(/\D/g, ''), 10);
+        return 'T' + (n < 10 ? '0' + n : String(n));
+    }
+
+    function todayStr() {
+        const d = new Date();
+        const p = n => (n < 10 ? '0' + n : String(n));
+        return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
+    }
+
+    async function checkServerAndAutoLoad(selectKyt) {
+        if (location.protocol === 'file:') {
+            serverConnected = false;
+            return;
+        }
+        try {
+            const st = await fetch(location.origin + '/api/status', { cache: 'no-store' }).then(r => r.json());
+            if (!st || !st.ok) return;
+            serverConnected = true;
+            serverDbInfo = st;
+            if (st.db_exists) {
+                const buf = await fetch(location.origin + '/api/mdb', { cache: 'no-store' }).then(r => r.arrayBuffer());
+                csvPrograms = parseRecipeMdb(buf).filter(p => p.steps.length > 0);
+                if (csvPrograms.length) {
+                    document.getElementById('profileSelect').disabled = false;
+                    document.getElementById('profileFilter').disabled = false;
+                    const q = document.getElementById('profileFilter').value || '';
+                    fillProfileSelect(q);
+                    let targetIdx = 0;
+                    if (selectKyt != null) {
+                        const found = csvPrograms.findIndex(p => Number(p.id) === Number(selectKyt));
+                        if (found >= 0) targetIdx = found;
+                    }
+                    document.getElementById('profileSelect').value = String(targetIdx);
+                    selectProfile(targetIdx);
+                }
+            }
+        } catch (_) {
+            serverConnected = false;
+        }
+    }
+
+    async function openMdbModal() {
+        const bg = document.getElementById('mdbModalBg');
+        bg.classList.add('open');
+        if (!serverConnected && location.protocol !== 'file:') {
+            await checkServerAndAutoLoad(null);
+        }
+        const stEl = document.getElementById('mdbServerStatus');
+        const btns = ['btnMdbSave', 'btnMdbSaveAs', 'btnMdbDelete', 'btnMdbCompact'];
+        if (serverConnected && serverDbInfo && serverDbInfo.db_exists) {
+            const mb = (serverDbInfo.db_size / (1024 * 1024)).toFixed(2);
+            stEl.textContent = `Подключено к server.py · База: ${serverDbInfo.db_name} (${mb} МБ) · Автобэкап включён`;
+            stEl.style.color = '#9fd89f';
+            btns.forEach(id => document.getElementById(id).disabled = false);
+        } else {
+            stEl.textContent = 'Автономный режим (без server.py). Для записи в MDB запустите server.py рядом с yilmaz.mdb.';
+            stEl.style.color = '#e0a96d';
+            btns.forEach(id => document.getElementById(id).disabled = true);
+        }
+
+        const p = csvPrograms[currentProgramIdx];
+        if (p && p.rawHeader) {
+            document.getElementById('mSlot').value = `${p.slotStart} .. ${p.slotStart + 99}`;
+            document.getElementById('mDate').value = p.rawHeader[0] || todayStr();
+            document.getElementById('mBrand').value = p.rawHeader[1] || '';
+            document.getElementById('mSeries').value = p.rawHeader[2] || '';
+            document.getElementById('mType').value = p.rawHeader[3] || '';
+            document.getElementById('mW').value = p.rawHeader[7] || '0';
+            document.getElementById('mH').value = p.rawHeader[8] || '0';
+            document.getElementById('mNote').value = p.rawHeader[9] || 'cnc610';
+            document.getElementById('mStatus').value = p.status === 'PASSIVE' ? 'PASSIVE' : 'ACTIVE';
+        } else {
+            document.getElementById('mSlot').value = 'Новый слот';
+            document.getElementById('mDate').value = todayStr();
+            document.getElementById('mBrand').value = 'PROFILE';
+            document.getElementById('mSeries').value = '60';
+            document.getElementById('mType').value = 'NEW';
+            document.getElementById('mW').value = '60';
+            document.getElementById('mH').value = '60';
+            document.getElementById('mNote').value = 'cnc610';
+            document.getElementById('mStatus').value = 'ACTIVE';
+            document.getElementById('btnMdbSave').disabled = true;
+            document.getElementById('btnMdbDelete').disabled = true;
+        }
+    }
+
+    function closeMdbModal() {
+        document.getElementById('mdbModalBg').classList.remove('open');
+    }
+
+    function build100RowsPayload(p) {
+        if (recipe.length > 97) {
+            throw new Error(`Слишком много шагов (${recipe.length}). Максимум для одного слота — 97.`);
+        }
+        const hdr = (p && p.rawHeader) ? p.rawHeader.slice() : [
+            todayStr(), '', '', '', 'OFF', 'NO', 'NO', '0', '0', 'cnc610', 'ACTIVE', 'YES', '', '', 'YES'
+        ];
+        hdr[0] = document.getElementById('mDate').value.trim() || todayStr();
+        hdr[1] = document.getElementById('mBrand').value.trim();
+        hdr[2] = document.getElementById('mSeries').value.trim();
+        hdr[3] = document.getElementById('mType').value.trim();
+        hdr[7] = document.getElementById('mW').value.trim() || '0';
+        hdr[8] = document.getElementById('mH').value.trim() || '0';
+        hdr[9] = document.getElementById('mNote').value.trim() || 'cnc610';
+        hdr[10] = document.getElementById('mStatus').value;
+
+        const startRow = (p && p.rawStart) ? p.rawStart.slice() : [
+            '', 'C00 START', '0', '0', '0', '0', '', '', '0', '0', '0', '0', '', '', '0'
+        ];
+        const stopRow = (p && p.rawStop) ? p.rawStop.slice() : [
+            '', 'C01 STOP', '0', '0', '0', '0', '', '', '0', '0', '', '', '', '', ''
+        ];
+
+        const rows = [hdr, startRow];
+        for (const st of recipe) {
+            const cols = (st.rawCols) ? st.rawCols.slice() : [
+                '', '', '0', '0', '0', '100', 'M1 ON', 'H1 GO ON', '0', '0', '0', '0', '', '', '0'
+            ];
+            cols[0] = fmtMdbTool(st.tool);
+            const cmdCode = (st.cmd === 'C06' || st.cmd === 'C07') ? (st.isCW ? 'C06' : 'C07') : st.cmd;
+            cols[1] = CMD_FULL_MAP[cmdCode] || cmdCode;
+            cols[2] = (cmdCode === 'C03') ? '0' : fmtMdbNum(st.x);
+            cols[3] = (cmdCode === 'C02') ? '0' : fmtMdbNum(st.y);
+            cols[4] = (cmdCode === 'C06' || cmdCode === 'C07') ? fmtMdbNum(st.r) : '0';
+            rows.push(cols);
+        }
+        rows.push(stopRow);
+        while (rows.length < 100) {
+            rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+        }
+        return rows;
+    }
+
+    function pickFreeSlot(useGap) {
+        const used = new Set(csvPrograms.map(p => Math.floor((Number(p.slotStart || p.id) - 1) / 100)));
+        if (!used.size) return 5101;
+        const arr = Array.from(used).sort((a, b) => a - b);
+        if (useGap) {
+            for (let s = arr[0]; s <= arr[arr.length - 1]; s++) {
+                if (!used.has(s)) return s * 100 + 1;
+            }
+        }
+        return (arr[arr.length - 1] + 1) * 100 + 1;
+    }
+
+    async function postApi(url, body) {
+        const res = await fetch(location.origin + url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        return data;
+    }
+
+    async function mdbSaveCurrent() {
+        const p = csvPrograms[currentProgramIdx];
+        if (!p || !p.slotStart) return;
+        try {
+            const rows = build100RowsPayload(p);
+            const res = await postApi('/api/save', { slot_start: p.slotStart, rows });
+            await checkServerAndAutoLoad(p.slotStart);
+            closeMdbModal();
+            alert(`Профиль №${p.slotStart} сохранён.\nБэкап: backups/${res.backup}`);
+        } catch (e) {
+            alert('Ошибка сохранения: ' + e.message);
+        }
+    }
+
+    async function mdbSaveAsNew() {
+        const p = csvPrograms[currentProgramIdx];
+        const useGap = document.getElementById('mUseGap').checked;
+        const newSlot = pickFreeSlot(useGap);
+        try {
+            const rows = build100RowsPayload(p);
+            const res = await postApi('/api/save', { slot_start: newSlot, rows });
+            await checkServerAndAutoLoad(newSlot);
+            closeMdbModal();
+            alert(`Создан новый профиль в слоте №${newSlot}.\nБэкап: backups/${res.backup}`);
+        } catch (e) {
+            alert('Ошибка сохранения: ' + e.message);
+        }
+    }
+
+    async function mdbDeleteCurrent() {
+        const p = csvPrograms[currentProgramIdx];
+        if (!p || !p.slotStart) return;
+        if (!confirm(`Полностью удалить профиль №${p.slotStart} (${p.name}) из базы yilmaz.mdb?\nБудет создан автобэкап.`)) return;
+        try {
+            const res = await postApi('/api/delete', { slot_start: p.slotStart });
+            await checkServerAndAutoLoad(null);
+            closeMdbModal();
+            alert(`Профиль №${p.slotStart} удалён.\nБэкап: backups/${res.backup}`);
+        } catch (e) {
+            alert('Ошибка удаления: ' + e.message);
+        }
+    }
+
+    async function mdbCompactDb() {
+        if (!confirm('Выполнить дефрагментацию и сжатие yilmaz.mdb?\nПеред операцией будет создан автобэкап.')) return;
+        const stEl = document.getElementById('mdbServerStatus');
+        stEl.textContent = 'Выполняется сжатие базы…';
+        try {
+            const res = await postApi('/api/compact', {});
+            const bMb = (res.size_before / (1024 * 1024)).toFixed(2);
+            const aMb = (res.size_after / (1024 * 1024)).toFixed(2);
+            const curKyt = (csvPrograms[currentProgramIdx] || {}).slotStart || null;
+            await checkServerAndAutoLoad(curKyt);
+            openMdbModal();
+            alert(`Дефрагментация завершена!\nРазмер: ${bMb} МБ → ${aMb} МБ\nБэкап: backups/${res.backup}`);
+        } catch (e) {
+            alert('Ошибка дефрагментации: ' + e.message);
+            openMdbModal();
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => checkServerAndAutoLoad(null));
+    } else {
+        checkServerAndAutoLoad(null);
+    }
+
+</script>
+</body>
+</html>
