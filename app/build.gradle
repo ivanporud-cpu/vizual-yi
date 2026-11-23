@@ -2,16 +2,18 @@ plugins {
     id 'com.android.application'
 }
 
+def buildNum = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
 android {
-    namespace 'com.yilmaz.cnc610'
+    namespace 'com.yilmaz.visualizer'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.yilmaz.cnc610.visualizer"
+        applicationId "com.yilmaz.visualizer.app"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "3.3-mobile"
+        versionCode buildNum
+        versionName "1.${buildNum}"
     }
 
     buildTypes {
@@ -31,4 +33,5 @@ android {
 }
 
 dependencies {
+    implementation 'androidx.core:core:1.13.1'
 }
