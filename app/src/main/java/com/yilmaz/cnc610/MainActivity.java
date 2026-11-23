@@ -180,4 +180,5 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Нажмите «Назад» ещё раз для выхода", Toast.LENGTH_SHORT).show();
         }
     }
+AppUpdater.check(this);
 }
