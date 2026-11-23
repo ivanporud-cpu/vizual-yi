@@ -1,4 +1,4 @@
-package com.yilmaz.cnc610;
+package com.yilmaz.visualizer;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -21,7 +21,7 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-    private static final int FILE_CHOOSER_REQ = 1001;
+    private static final int FILE_CHOOSER_REQUEST_CODE = 1001;
 
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
@@ -34,11 +34,11 @@ public class MainActivity extends Activity {
 
         Window window = getWindow();
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-        window.setStatusBarColor(Color.parseColor("#111111"));
-        window.setNavigationBarColor(Color.parseColor("#111111"));
+        window.setStatusBarColor(Color.parseColor("#0b0f19"));
+        window.setNavigationBarColor(Color.parseColor("#0b0f19"));
 
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.parseColor("#111111"));
+        webView.setBackgroundColor(Color.parseColor("#0b0f19"));
         setContentView(webView);
 
         WebSettings s = webView.getSettings();
@@ -51,10 +51,9 @@ public class MainActivity extends Activity {
         s.setAllowUniversalAccessFromFileURLs(true);
         s.setUseWideViewPort(true);
         s.setLoadWithOverviewMode(true);
-        s.setSupportZoom(false);
-        s.setBuiltInZoomControls(false);
+        s.setSupportZoom(true);
+        s.setBuiltInZoomControls(true);
         s.setDisplayZoomControls(false);
-        s.setMediaPlaybackRequiresUserGesture(false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         }
@@ -68,29 +67,24 @@ public class MainActivity extends Activity {
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
-            public boolean onShowFileChooser(
-                    WebView webView,
-                    ValueCallback<Uri[]> callback,
-                    FileChooserParams fileChooserParams
-            ) {
-                if (filePathCallback != null) {
-                    filePathCallback.onReceiveValue(null);
+            public boolean onShowFileChooser(WebView view,
+                                             ValueCallback<Uri[]> filePathCallback,
+                                             FileChooserParams fileChooserParams) {
+                if (MainActivity.this.filePathCallback != null) {
+                    MainActivity.this.filePathCallback.onReceiveValue(null);
                 }
-                filePathCallback = callback;
+                MainActivity.this.filePathCallback = filePathCallback;
 
-                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
                 intent.setType("*/*");
-
-                String[] accept = fileChooserParams != null ? fileChooserParams.getAcceptTypes() : null;
-                if (accept != null && accept.length == 1 && accept[0] != null && accept[0].startsWith("image/")) {
-                    intent.setType("image/*");
-                }
-
                 try {
-                    startActivityForResult(Intent.createChooser(intent, "Выберите файл"), FILE_CHOOSER_REQ);
+                    startActivityForResult(
+                            Intent.createChooser(intent, "Выберите файл yilmaz.mdb"),
+                            FILE_CHOOSER_REQUEST_CODE
+                    );
                 } catch (Exception e) {
-                    filePathCallback = null;
+                    MainActivity.this.filePathCallback = null;
                     Toast.makeText(MainActivity.this, "Не удалось открыть выбор файла", Toast.LENGTH_SHORT).show();
                     return false;
                 }
@@ -121,28 +115,24 @@ public class MainActivity extends Activity {
             }
         });
 
-        if (savedInstanceState == null) {
-            webView.loadUrl("file:///android_asset/index.html");
-        }
+        hideSystemUI();
+        webView.loadUrl("file:///android_asset/index.html");
+        AppUpdater.check(this);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == FILE_CHOOSER_REQ) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
             if (filePathCallback != null) {
                 Uri[] results = null;
-                if (resultCode == RESULT_OK && data != null) {
-                    Uri uri = data.getData();
-                    if (uri != null) {
-                        results = new Uri[]{uri};
-                    }
+                if (resultCode == Activity.RESULT_OK && data != null && data.getData() != null) {
+                    results = new Uri[]{data.getData()};
                 }
                 filePathCallback.onReceiveValue(results);
                 filePathCallback = null;
             }
-            return;
         }
-        super.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override
@@ -180,5 +170,4 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Нажмите «Назад» ещё раз для выхода", Toast.LENGTH_SHORT).show();
         }
     }
-AppUpdater.check(this);
 }
